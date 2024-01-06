@@ -1,0 +1,13 @@
+postgresinit:
+	docker run --name mainyuk-db -p 5433:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=password -d postgres:alpine
+
+postgres:
+	docker exec -it mainyuk-db psql
+
+createdb:
+	docker exec -it mainyuk-db createdb --username=root --owner=root go-chat
+
+dropdb: 
+	docker exec -it mainyuk-db dropdb postgres
+
+.PHONY: postgresinit postgres createdb dropdb
