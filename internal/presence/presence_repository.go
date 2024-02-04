@@ -1,8 +1,6 @@
 package presence
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -48,7 +46,7 @@ func (r *repository) Index(c *gin.Context) ([]*Presence, error) {
 	tx := r.db
 	query := tx.Model(&presences)
 	eventID := c.Query("event_id")
-	fmt.Println(eventID)
+
 	if eventID != "" {
 		query.Where("event_id = ?", eventID)
 	}
@@ -56,6 +54,6 @@ func (r *repository) Index(c *gin.Context) ([]*Presence, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println(query)
+
 	return presences, nil
 }

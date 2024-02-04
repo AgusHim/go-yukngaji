@@ -31,8 +31,8 @@ type CreateEvent struct {
 	ImageUrl string    `json:"image_url" binding:"required"`
 	Speaker  string    `json:"speaker" binding:"required"`
 	DivisiID string    `json:"divisi_id" binding:"required"`
-	StartAt  time.Time `json:"start_at" binding:"required"`
-	EndAt    time.Time `json:"end_at" binding:"required"`
+	StartAt  string `json:"start_at" binding:"required"`
+	EndAt    string `json:"end_at" binding:"required"`
 }
 
 type Repository interface {

@@ -20,8 +20,8 @@ func (Divisi) TableName() string {
 }
 
 type CreateDivisi struct {
-	Name     string `json:"name" db:"name"`
-	Regional string `json:"regional" db:"regional"`
+	Name     string `json:"name" binding:"required"`
+	Regional string `json:"regional" binding:"required"`
 }
 
 type Repository interface {

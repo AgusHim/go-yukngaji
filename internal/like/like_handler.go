@@ -1,4 +1,4 @@
-package presence
+package like
 
 import (
 	"fmt"
@@ -18,25 +18,15 @@ func NewHandler(s Service) Handler {
 }
 
 func (h *handler) Create(c *gin.Context) {
-	var presence CreatePresence
-	if err := c.ShouldBindJSON(&presence); err != nil {
+	var like CreateLike
+	if err := c.ShouldBindJSON(&like); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Invalid JSON",
 		})
 		return
-
 	}
 
-	if presence.UserID == nil && presence.User != nil {
-		if presence.User.Name == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Invalid JSON",
-			})
-			return
-		}
-	}
-
-	res, err := h.Service.Create(c, &presence)
+	res, err := h.Service.Create(c, &like)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),
@@ -46,16 +36,17 @@ func (h *handler) Create(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func (h *handler) Show(c *gin.Context) {
+func (h *handler) Delete(c *gin.Context) {
 	id := c.Param("id")
-	res, err := h.Service.Show(c, id)
+
+	err := h.Service.Delete(c, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),
 		})
 		return
 	}
-	c.JSON(http.StatusOK, res)
+	c.JSON(http.StatusOK, nil)
 }
 
 func (h *handler) Index(c *gin.Context) {

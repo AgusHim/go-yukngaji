@@ -37,8 +37,17 @@ func (s *service) Create(c *gin.Context, req *CreateEvent) (*Event, error) {
 	event.Speaker = req.Speaker
 	event.DivisiID = req.DivisiID
 	event.Participant = 0
-	event.StartAt = req.StartAt
-	event.EndAt = req.EndAt
+
+	startAt, errParsed := time.Parse("2006-01-02", req.StartAt)
+	if errParsed != nil {
+		return nil, errParsed
+	}
+	endAt, errParsed := time.Parse("2006-01-02", req.EndAt)
+	if errParsed != nil {
+		return nil, errParsed
+	}
+	event.StartAt = startAt
+	event.EndAt = endAt
 
 	event.CreatedAt = time.Now()
 	event.UpdatedAt = time.Now()

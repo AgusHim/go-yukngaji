@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 	"mainyuk/utils"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,13 @@ func (s *service) Register(c *gin.Context, req *CreateUser) (*User, error) {
 	user.Name = req.Name
 	user.Username = req.Username
 	user.Gender = req.Gender
-	user.Age = req.Age
+
+	age, errAge := strconv.Atoi(req.Age)
+	if errAge != nil {
+		return nil, errAge
+	}
+
+	user.Age = age
 	user.Phone = req.Phone
 	user.Email = req.Email
 	user.Address = req.Address
@@ -76,7 +83,13 @@ func (s *service) Presence(c *gin.Context, req *CreateUser) (*User, error) {
 		user.Username = req.Username
 	}
 	user.Gender = req.Gender
-	user.Age = req.Age
+
+	age, errAge := strconv.Atoi(req.Age)
+	if errAge != nil {
+		return nil, errAge
+	}
+
+	user.Age = age
 	user.Phone = req.Phone
 	user.Email = req.Email
 	user.Address = req.Address

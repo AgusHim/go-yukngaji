@@ -1,4 +1,4 @@
-package presence
+package comment
 
 import (
 	"fmt"
@@ -18,37 +18,15 @@ func NewHandler(s Service) Handler {
 }
 
 func (h *handler) Create(c *gin.Context) {
-	var presence CreatePresence
-	if err := c.ShouldBindJSON(&presence); err != nil {
+	var comment CreateComment
+	if err := c.ShouldBindJSON(&comment); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Invalid JSON",
 		})
 		return
-
 	}
 
-	if presence.UserID == nil && presence.User != nil {
-		if presence.User.Name == "" {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Invalid JSON",
-			})
-			return
-		}
-	}
-
-	res, err := h.Service.Create(c, &presence)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": fmt.Sprintln(err.Error()),
-		})
-		return
-	}
-	c.JSON(http.StatusOK, res)
-}
-
-func (h *handler) Show(c *gin.Context) {
-	id := c.Param("id")
-	res, err := h.Service.Show(c, id)
+	res, err := h.Service.Create(c, &comment)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),

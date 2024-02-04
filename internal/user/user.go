@@ -28,9 +28,9 @@ type Login struct {
 }
 
 type CreateUser struct {
-	Name     string `json:"name"`
+	Name     string `json:"name" binding:"required"`
 	Gender   string `json:"gender"`
-	Age      int    `json:"age"`
+	Age      string    `json:"age"`
 	Phone    string `json:"phone"`
 	Email    string `json:"email"`
 	Username string `json:"username"`

@@ -1,12 +1,16 @@
 package router
 
 import (
+	"log"
 	"mainyuk/internal/auth"
+	"mainyuk/internal/comment"
 	"mainyuk/internal/divisi"
 	"mainyuk/internal/event"
+	"mainyuk/internal/like"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/user"
 	"mainyuk/internal/ws"
+	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -14,7 +18,10 @@ import (
 
 var r *gin.Engine
 
-func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventHandler event.Handler, divisiHandler divisi.Handler, presenceHandler presence.Handler, wsHandler *ws.Handler) {
+func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventHandler event.Handler, divisiHandler divisi.Handler, presenceHandler presence.Handler, commentHandler comment.Handler, likeHandler like.Handler, wsHandler *ws.Handler) {
+	mode := os.Getenv("GIN_MODE")
+	gin.SetMode(mode)
+
 	r = gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowCredentials = true
@@ -40,12 +47,17 @@ func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventH
 	api.GET("/presence/:slug", presenceHandler.Show)
 	api.GET("/presence", authMiddleware.AuthAdmin, presenceHandler.Index)
 
-	r.POST("/ws/createRoom", wsHandler.CrateRoom)
-	r.GET("/ws/joinRoom/:roomId", wsHandler.JoinRoom)
-	r.GET("/ws/getRooms", wsHandler.GetRooms)
-	r.GET("/ws/getClients/:roomId", wsHandler.GetClients)
+	api.POST("/comments", commentHandler.Create)
+	api.GET("/comments", commentHandler.Index)
+
+	api.GET("/comments/like", likeHandler.Index)
+	api.POST("/comments/like", likeHandler.Create)
+	api.DELETE("/comments/like/:id", likeHandler.Delete)
+
+	r.GET("/ws/events/:id", wsHandler.ConnectWS)
 }
 
 func Start(addr string) error {
+	log.Printf("Server runing on %s", addr)
 	return r.Run(addr)
 }

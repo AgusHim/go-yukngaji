@@ -4,19 +4,30 @@ import (
 	"log"
 	"mainyuk/db"
 	"mainyuk/internal/auth"
+	"mainyuk/internal/comment"
 	"mainyuk/internal/divisi"
 	"mainyuk/internal/event"
+	"mainyuk/internal/like"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/user"
 	"mainyuk/internal/ws"
 	"mainyuk/router"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	errEnv := godotenv.Load()
+	if errEnv != nil {
+		log.Fatalf("Error Load .env : %s", errEnv)
+	}
+
 	db, err := db.NewDatabase()
 	if err != nil {
-		log.Fatalf("Could not initialize DB Connection: %s", err)
+		go log.Fatalf("Could not initialize DB Connection: %s", err)
 	}
+	hub := ws.NewHub()
+	wsHandler := ws.NewHandler(hub)
 
 	userRepository := user.NewRepository(db)
 	userService := user.NewService(userRepository)
@@ -36,11 +47,16 @@ func main() {
 
 	authMiddleware := auth.NewMiddleware(userService)
 
-	hub := ws.NewHub()
-	wsHandler := ws.NewHandler(hub)
+	commentRepository := comment.NewRepository(db)
+	commentService := comment.NewService(commentRepository, userService, eventService, hub)
+	commentHandler := comment.NewHandler(commentService)
+
+	likeRepository := like.NewRepository(db)
+	likeService := like.NewService(likeRepository, userService, commentService, hub)
+	likeHandler := like.NewHandler(likeService)
 
 	go hub.Run()
 
-	router.InitRouter(authMiddleware, userHandler, eventHandler, divisiHandler, presenceHandler, wsHandler)
-	router.Start("0.0.0.0:8000")
+	router.InitRouter(authMiddleware, userHandler, eventHandler, divisiHandler, presenceHandler, commentHandler, likeHandler, wsHandler)
+	router.Start("0.0.0.0:8080")
 }

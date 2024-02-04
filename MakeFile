@@ -10,4 +10,7 @@ createdb:
 dropdb: 
 	docker exec -it mainyuk-db dropdb postgres
 
-.PHONY: postgresinit postgres createdb dropdb
+buildimage:
+	dockdocker build -t gushim/yukngaji:1.0.1 .
+
+.PHONY: postgresinit postgres createdb dropdb buildimage
