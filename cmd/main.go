@@ -7,11 +7,13 @@ import (
 	"mainyuk/internal/comment"
 	"mainyuk/internal/divisi"
 	"mainyuk/internal/event"
+	"mainyuk/internal/feedback"
 	"mainyuk/internal/like"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/user"
 	"mainyuk/internal/ws"
 	"mainyuk/router"
+	"os"
 
 	"github.com/joho/godotenv"
 )
@@ -55,8 +57,14 @@ func main() {
 	likeService := like.NewService(likeRepository, userService, commentService, hub)
 	likeHandler := like.NewHandler(likeService)
 
+	feedbackRepository := feedback.NewRepository(db)
+	feedbackService := feedback.NewService(feedbackRepository, userService, eventService)
+	feedbackHandler := feedback.NewHandler(feedbackService)
+
 	go hub.Run()
 
-	router.InitRouter(authMiddleware, userHandler, eventHandler, divisiHandler, presenceHandler, commentHandler, likeHandler, wsHandler)
-	router.Start("0.0.0.0:8080")
+	router.InitRouter(authMiddleware, userHandler, eventHandler, divisiHandler, presenceHandler, commentHandler, likeHandler, feedbackHandler, wsHandler)
+
+	host := os.Getenv("HOST")
+	router.Start(host)
 }

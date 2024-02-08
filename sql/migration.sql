@@ -61,6 +61,16 @@ CREATE TABLE "comments" (
   "deleted_at" timestamp
 );
 
+CREATE TABLE "feedback" (
+  "id" varchar PRIMARY KEY,
+  "event_id" varchar NOT NULL,
+  "user_id" varchar NOT NULL,
+  "message" varchar NOT NULL,
+  "created_at" timestamp,
+  "updated_at" timestamp DEFAULT (now()),
+  "deleted_at" timestamp
+);
+
 CREATE TABLE "likes" (
   "id" varchar PRIMARY KEY,
   "comment_id" varchar NOT NULL,

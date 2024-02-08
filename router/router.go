@@ -6,6 +6,7 @@ import (
 	"mainyuk/internal/comment"
 	"mainyuk/internal/divisi"
 	"mainyuk/internal/event"
+	"mainyuk/internal/feedback"
 	"mainyuk/internal/like"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/user"
@@ -18,7 +19,7 @@ import (
 
 var r *gin.Engine
 
-func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventHandler event.Handler, divisiHandler divisi.Handler, presenceHandler presence.Handler, commentHandler comment.Handler, likeHandler like.Handler, wsHandler *ws.Handler) {
+func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventHandler event.Handler, divisiHandler divisi.Handler, presenceHandler presence.Handler, commentHandler comment.Handler, likeHandler like.Handler, feedbackHandler feedback.Handler, wsHandler *ws.Handler) {
 	mode := os.Getenv("GIN_MODE")
 	gin.SetMode(mode)
 
@@ -53,6 +54,9 @@ func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventH
 	api.GET("/comments/like", likeHandler.Index)
 	api.POST("/comments/like", likeHandler.Create)
 	api.DELETE("/comments/like/:id", likeHandler.Delete)
+
+	api.GET("/feedback", authMiddleware.AuthAdmin, feedbackHandler.Index)
+	api.POST("/feedback", feedbackHandler.Create)
 
 	r.GET("/ws/events/:id", wsHandler.ConnectWS)
 }
