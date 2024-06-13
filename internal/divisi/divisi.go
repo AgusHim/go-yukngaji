@@ -10,7 +10,7 @@ type Divisi struct {
 	ID        string     `json:"id" binding:"required"`
 	Name      string     `json:"name" binding:"required"`
 	Regional  string     `json:"regional" binding:"required"`
-	CreatedAt time.Time  `json:"created_at" binding:"required"`
+	CreatedAt time.Time  `json:"-" binding:"required"`
 	UpdatedAt time.Time  `json:"-" binding:"required"`
 	DeletedAt *time.Time `json:"-" binding:"required"`
 }
@@ -25,7 +25,7 @@ type CreateDivisi struct {
 }
 
 type Repository interface {
-	Create(ctx *gin.Context, event *Divisi) (*Divisi, error)
+	Create(ctx *gin.Context, divisi *Divisi) (*Divisi, error)
 	Show(ctx *gin.Context, id string) (*Divisi, error)
 	Index(ctx *gin.Context) ([]*Divisi, error)
 }

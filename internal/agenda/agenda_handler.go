@@ -1,4 +1,4 @@
-package divisi
+package agenda
 
 import (
 	"fmt"
@@ -18,15 +18,15 @@ func NewHandler(s Service) Handler {
 }
 
 func (h *handler) Create(c *gin.Context) {
-	var divisi CreateDivisi
-	if err := c.ShouldBindJSON(&divisi); err != nil {
+	var agenda CreateAgenda
+	if err := c.ShouldBindJSON(&agenda); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Invalid JSON",
 		})
 		return
 	}
 
-	res, err := h.Service.Create(c, &divisi)
+	res, err := h.Service.Create(c, &agenda)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),

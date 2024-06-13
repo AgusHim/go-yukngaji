@@ -26,13 +26,6 @@ func NewService(repository Repository, userService user.Service, eventService ev
 
 // Register implements Service
 func (s *service) Create(c *gin.Context, req *CreatePresence) (*Presence, error) {
-	if req.UserID != nil {
-		presence, _ := s.PresenceRepository.FindByUserID(c, *req.UserID)
-		if presence != nil {
-			return presence, nil
-		}
-	}
-	
 	if req.User == nil && req.UserID == nil {
 		return nil, errors.New("InvalidRequest")
 	}
@@ -40,6 +33,13 @@ func (s *service) Create(c *gin.Context, req *CreatePresence) (*Presence, error)
 	event, errEvent := s.EventService.Show(c, req.EventID)
 	if errEvent != nil {
 		return nil, errors.New("EventNotFound")
+	}
+
+	if req.UserID != nil {
+		presence, _ := s.PresenceRepository.FindByUserID(c, *req.UserID, event.ID)
+		if presence != nil {
+			return presence, nil
+		}
 	}
 
 	presence := &Presence{}

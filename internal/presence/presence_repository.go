@@ -32,9 +32,9 @@ func (r *repository) Show(c *gin.Context, id string) (*Presence, error) {
 	return presence, nil
 }
 
-func (r *repository) FindByUserID(c *gin.Context, id string) (*Presence, error) {
+func (r *repository) FindByUserID(c *gin.Context, id string, eventID string) (*Presence, error) {
 	presence := &Presence{}
-	err := r.db.Preload("User").Preload("Event").Where("user_id = ?", id).Where("deleted_at IS NULL").First(&presence).Error
+	err := r.db.Preload("User").Preload("Event").Where("user_id = ?", id).Where("event_id = ?",eventID).Where("deleted_at IS NULL").First(&presence).Error
 	if err != nil {
 		return nil, err
 	}

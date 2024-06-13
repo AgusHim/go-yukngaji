@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"mainyuk/db"
+	"mainyuk/internal/agenda"
 	"mainyuk/internal/auth"
 	"mainyuk/internal/comment"
 	"mainyuk/internal/divisi"
@@ -10,6 +11,8 @@ import (
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/like"
 	"mainyuk/internal/presence"
+	"mainyuk/internal/ranger"
+	"mainyuk/internal/ranger_presence"
 	"mainyuk/internal/user"
 	"mainyuk/internal/ws"
 	"mainyuk/router"
@@ -61,9 +64,21 @@ func main() {
 	feedbackService := feedback.NewService(feedbackRepository, userService, eventService)
 	feedbackHandler := feedback.NewHandler(feedbackService)
 
+	agendaRepository := agenda.NewRepository(db)
+	agendaService := agenda.NewService(agendaRepository)
+	agendaHandler := agenda.NewHandler(agendaService)
+
+	rangerRepository := ranger.NewRepository(db)
+	rangerService := ranger.NewService(rangerRepository, userService, divisiService)
+	rangerHandler := ranger.NewHandler(rangerService)
+
+	rangerPresenceRepository := ranger_presence.NewRepository(db)
+	rangerPresenceService := ranger_presence.NewService(rangerPresenceRepository, rangerService, agendaService, divisiService)
+	rangerPresenceHandler := ranger_presence.NewHandler(rangerPresenceService)
+
 	go hub.Run()
 
-	router.InitRouter(authMiddleware, userHandler, eventHandler, divisiHandler, presenceHandler, commentHandler, likeHandler, feedbackHandler, wsHandler)
+	router.InitRouter(authMiddleware, userHandler, eventHandler, divisiHandler, presenceHandler, commentHandler, likeHandler, feedbackHandler, wsHandler, agendaHandler, rangerHandler, rangerPresenceHandler)
 
 	host := os.Getenv("HOST")
 	router.Start(host)

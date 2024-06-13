@@ -8,29 +8,29 @@ import (
 )
 
 type Event struct {
-	ID          string        `json:"id"`
-	Slug        string        `json:"slug" `
-	Code        string        `json:"code" `
-	Title       string        `json:"title" binding:"required"`
-	Desc        string        `json:"desc" binding:"required"`
-	ImageUrl    string        `json:"image_url" binding:"required"`
-	Speaker     string        `json:"speaker" binding:"required"`
-	DivisiID    string        `json:"-" binding:"required"`
-	Divisi      divisi.Divisi `json:"divisi"`
-	StartAt     time.Time     `json:"start_at" binding:"required"`
-	EndAt       time.Time     `json:"end_at" binding:"required"`
-	Participant int           `json:"participant"`
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   time.Time     `json:"-"`
-	DeletedAt   *time.Time    `json:"-"`
+	ID          string         `json:"id"`
+	Slug        string         `json:"slug" `
+	Code        string         `json:"code" `
+	Title       string         `json:"title" binding:"required"`
+	Desc        string         `json:"desc" binding:"required"`
+	ImageUrl    string         `json:"image_url" binding:"required"`
+	Speaker     string         `json:"speaker" binding:"required"`
+	DivisiID    string         `json:"-" binding:"required"`
+	Divisi      *divisi.Divisi `json:"divisi"`
+	StartAt     time.Time      `json:"start_at" binding:"required"`
+	EndAt       time.Time      `json:"end_at" binding:"required"`
+	Participant int            `json:"participant"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"-"`
+	DeletedAt   *time.Time     `json:"-"`
 }
 
 type CreateEvent struct {
-	Title    string    `json:"title" binding:"required"`
-	Desc     string    `json:"desc" binding:"required"`
-	ImageUrl string    `json:"image_url" binding:"required"`
-	Speaker  string    `json:"speaker" binding:"required"`
-	DivisiID string    `json:"divisi_id" binding:"required"`
+	Title    string `json:"title" binding:"required"`
+	Desc     string `json:"desc" binding:"required"`
+	ImageUrl string `json:"image_url" binding:"required"`
+	Speaker  string `json:"speaker" binding:"required"`
+	DivisiID string `json:"divisi_id" binding:"required"`
 	StartAt  string `json:"start_at" binding:"required"`
 	EndAt    string `json:"end_at" binding:"required"`
 }

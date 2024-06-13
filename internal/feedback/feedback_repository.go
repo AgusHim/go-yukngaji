@@ -37,7 +37,7 @@ func (r *repository) Index(c *gin.Context) ([]*Feedback, error) {
 	}
 
 	now := time.Now()
-	start := now.AddDate(0, 0, -7)
+	start := now.AddDate(0, -12, 0)
 	end := now
 
 	query.Where("created_at BETWEEN ? AND ?", start, end)

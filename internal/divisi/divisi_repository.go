@@ -15,12 +15,12 @@ func NewRepository(db *gorm.DB) Repository {
 	}
 }
 
-func (r *repository) Create(c *gin.Context, event *Divisi) (*Divisi, error) {
-	err := r.db.Create(event).Error
+func (r *repository) Create(c *gin.Context, divisi *Divisi) (*Divisi, error) {
+	err := r.db.Create(divisi).Error
 	if err != nil {
 		return nil, err
 	}
-	return event, nil
+	return divisi, nil
 }
 
 func (r *repository) Show(c *gin.Context, id string) (*Divisi, error) {

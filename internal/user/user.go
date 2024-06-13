@@ -17,6 +17,7 @@ type User struct {
 	Address   string     `json:"address" binding:"required"`
 	Password  string     `json:"-" binding:"required"`
 	Role      string     `json:"role"`
+	Activity  *string    `json:"activity"`
 	CreatedAt time.Time  `json:"created_at" `
 	UpdatedAt time.Time  `json:"-" `
 	DeletedAt *time.Time `json:"-" `
@@ -30,12 +31,13 @@ type Login struct {
 type CreateUser struct {
 	Name     string `json:"name" binding:"required"`
 	Gender   string `json:"gender"`
-	Age      string    `json:"age"`
+	Age      string `json:"age"`
 	Phone    string `json:"phone"`
 	Email    string `json:"email"`
 	Username string `json:"username"`
 	Address  string `json:"address"`
 	Password string `json:"password"`
+	Activity string `json:"activity" binding:"required"`
 }
 
 type Repository interface {

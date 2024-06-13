@@ -38,11 +38,11 @@ func (s *service) Create(c *gin.Context, req *CreateEvent) (*Event, error) {
 	event.DivisiID = req.DivisiID
 	event.Participant = 0
 
-	startAt, errParsed := time.Parse("2006-01-02", req.StartAt)
+	startAt, errParsed := time.Parse("2006-01-02T15:04", req.StartAt)
 	if errParsed != nil {
 		return nil, errParsed
 	}
-	endAt, errParsed := time.Parse("2006-01-02", req.EndAt)
+	endAt, errParsed := time.Parse("2006-01-02T15:04", req.EndAt)
 	if errParsed != nil {
 		return nil, errParsed
 	}

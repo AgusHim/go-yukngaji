@@ -4,6 +4,7 @@ import (
 	"errors"
 	"mainyuk/utils"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -42,6 +43,9 @@ func (s *service) Register(c *gin.Context, req *CreateUser) (*User, error) {
 	user.Email = req.Email
 	user.Address = req.Address
 	user.Role = "user"
+
+	activity := strings.ToLower(req.Activity)
+	user.Activity = &activity
 
 	hash, errHash := utils.HashPassword(req.Password)
 	if errHash != nil {
@@ -94,6 +98,9 @@ func (s *service) Presence(c *gin.Context, req *CreateUser) (*User, error) {
 	user.Email = req.Email
 	user.Address = req.Address
 	user.Role = "jamaah"
+
+	activity := strings.ToLower(req.Activity)
+	user.Activity = &activity
 
 	hash, errHash := utils.HashPassword("taatbahagia")
 	if errHash != nil {

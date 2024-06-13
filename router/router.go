@@ -2,6 +2,7 @@ package router
 
 import (
 	"log"
+	"mainyuk/internal/agenda"
 	"mainyuk/internal/auth"
 	"mainyuk/internal/comment"
 	"mainyuk/internal/divisi"
@@ -9,6 +10,8 @@ import (
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/like"
 	"mainyuk/internal/presence"
+	"mainyuk/internal/ranger"
+	"mainyuk/internal/ranger_presence"
 	"mainyuk/internal/user"
 	"mainyuk/internal/ws"
 	"os"
@@ -19,7 +22,20 @@ import (
 
 var r *gin.Engine
 
-func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventHandler event.Handler, divisiHandler divisi.Handler, presenceHandler presence.Handler, commentHandler comment.Handler, likeHandler like.Handler, feedbackHandler feedback.Handler, wsHandler *ws.Handler) {
+func InitRouter(
+	authMiddleware auth.Middleware,
+	userHandler user.Handler,
+	eventHandler event.Handler,
+	divisiHandler divisi.Handler,
+	presenceHandler presence.Handler,
+	commentHandler comment.Handler,
+	likeHandler like.Handler,
+	feedbackHandler feedback.Handler,
+	wsHandler *ws.Handler,
+	agendaHandler agenda.Handler,
+	rangerHandler ranger.Handler,
+	rangerPresenceHandler ranger_presence.Handler,
+) {
 	mode := os.Getenv("GIN_MODE")
 	gin.SetMode(mode)
 
@@ -32,6 +48,9 @@ func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventH
 	r.Use(cors.New(config))
 
 	api := r.Group("api")
+	ranger_api := r.Group("ranger_api")
+	admin_api := r.Group("admin_api")
+
 	api.POST("/register", userHandler.Register)
 	api.POST("/login", userHandler.Login)
 
@@ -40,9 +59,9 @@ func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventH
 	api.GET("/events/code/:code", eventHandler.ShowByCode)
 	api.GET("/events", authMiddleware.AuthAdmin, eventHandler.Index)
 
-	api.POST("/divisi", authMiddleware.AuthAdmin, divisiHandler.Create)
-	api.GET("/divisi/:slug", authMiddleware.AuthAdmin, divisiHandler.Show)
-	api.GET("/divisi", authMiddleware.AuthAdmin, divisiHandler.Index)
+	api.POST("/divisi", authMiddleware.AuthPJ, divisiHandler.Create)
+	api.GET("/divisi/:slug", authMiddleware.AuthPJ, divisiHandler.Show)
+	api.GET("/divisi", authMiddleware.AuthPJ, divisiHandler.Index)
 
 	api.POST("/presence", presenceHandler.Create)
 	api.GET("/presence/:slug", presenceHandler.Show)
@@ -57,6 +76,21 @@ func InitRouter(authMiddleware auth.Middleware, userHandler user.Handler, eventH
 
 	api.GET("/feedback", authMiddleware.AuthAdmin, feedbackHandler.Index)
 	api.POST("/feedback", feedbackHandler.Create)
+
+	admin_api.POST("/agenda", authMiddleware.AuthPJ, agendaHandler.Create)
+	admin_api.GET("/agenda/:id", authMiddleware.AuthPJ, agendaHandler.Show)
+	admin_api.GET("/agenda", authMiddleware.AuthPJ, agendaHandler.Index)
+
+	admin_api.POST("/rangers", authMiddleware.AuthPJ, rangerHandler.Create)
+	ranger_api.GET("/rangers/me", authMiddleware.AuthRanger, rangerHandler.Show)
+	admin_api.GET("/rangers/:id", authMiddleware.AuthPJ, rangerHandler.Show)
+	admin_api.GET("/rangers", authMiddleware.AuthPJ, rangerHandler.Index)
+
+	admin_api.POST("/rangers/presence", authMiddleware.AuthPJ, rangerPresenceHandler.Create)
+	admin_api.GET("/rangers/presence/:id", authMiddleware.AuthPJ, rangerPresenceHandler.Show)
+
+	admin_api.GET("/rangers/presence", authMiddleware.AuthPJ, rangerPresenceHandler.Index)
+	ranger_api.GET("/rangers/presence", authMiddleware.AuthRanger, rangerPresenceHandler.Index)
 
 	r.GET("/ws/events/:id", wsHandler.ConnectWS)
 }

@@ -16,7 +16,7 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *repository) Create(c *gin.Context, event *Event) (*Event, error) {
-	err := r.db.Create(event).Error
+	err := r.db.Preload("Divisi").Create(event).Error
 	if err != nil {
 		return nil, err
 	}

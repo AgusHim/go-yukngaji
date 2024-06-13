@@ -1,4 +1,4 @@
-package divisi
+package ranger_presence
 
 import (
 	"fmt"
@@ -18,15 +18,15 @@ func NewHandler(s Service) Handler {
 }
 
 func (h *handler) Create(c *gin.Context) {
-	var divisi CreateDivisi
-	if err := c.ShouldBindJSON(&divisi); err != nil {
+	var presence CreatePresence
+	if err := c.ShouldBindJSON(&presence); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Invalid JSON",
+			"error":    "Invalid JSON",
 		})
 		return
 	}
 
-	res, err := h.Service.Create(c, &divisi)
+	res, err := h.Service.Create(c, &presence)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),

@@ -34,17 +34,17 @@ func (s *service) Create(c *gin.Context, req *CreateDivisi) (*Divisi, error) {
 }
 
 func (s *service) Show(c *gin.Context, id string) (*Divisi, error) {
-	event, err := s.Repository.Show(c, id)
+	divisi, err := s.Repository.Show(c, id)
 	if err != nil {
 		return nil, err
 	}
-	return event, nil
+	return divisi, nil
 }
 
 func (s *service) Index(c *gin.Context) ([]*Divisi, error) {
-	event, err := s.Repository.Index(c)
+	divisi, err := s.Repository.Index(c)
 	if err != nil {
 		return nil, err
 	}
-	return event, nil
+	return divisi, nil
 }

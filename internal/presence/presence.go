@@ -33,7 +33,7 @@ type Repository interface {
 	Create(ctx *gin.Context, event *Presence) (*Presence, error)
 	Show(ctx *gin.Context, id string) (*Presence, error)
 	Index(ctx *gin.Context) ([]*Presence, error)
-	FindByUserID(ctx *gin.Context, id string) (*Presence, error)
+	FindByUserID(ctx *gin.Context, id string, eventID string) (*Presence, error)
 }
 
 type Service interface {
