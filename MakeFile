@@ -11,6 +11,6 @@ dropdb:
 	docker exec -it mainyuk-db dropdb postgres
 
 buildimage:
-	dockdocker build -t gushim/yukngaji:1.0.1 .
+	docker build -t gushim/yukngaji:1.0.1 .
 
 .PHONY: postgresinit postgres createdb dropdb buildimage

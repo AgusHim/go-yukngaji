@@ -59,9 +59,9 @@ func InitRouter(
 	api.GET("/events/code/:code", eventHandler.ShowByCode)
 	api.GET("/events", authMiddleware.AuthAdmin, eventHandler.Index)
 
-	api.POST("/divisi", authMiddleware.AuthPJ, divisiHandler.Create)
-	api.GET("/divisi/:slug", authMiddleware.AuthPJ, divisiHandler.Show)
-	api.GET("/divisi", authMiddleware.AuthPJ, divisiHandler.Index)
+	admin_api.POST("/divisi", authMiddleware.AuthPJ, divisiHandler.Create)
+	admin_api.GET("/divisi/:slug", authMiddleware.AuthPJ, divisiHandler.Show)
+	admin_api.GET("/divisi", authMiddleware.AuthPJ, divisiHandler.Index)
 
 	api.POST("/presence", presenceHandler.Create)
 	api.GET("/presence/:slug", presenceHandler.Show)
