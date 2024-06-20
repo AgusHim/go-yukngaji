@@ -29,13 +29,26 @@ func (s *service) Create(c *gin.Context, req *CreateRanger) (*Ranger, error) {
 	ranger := &Ranger{}
 	ranger.ID = uuid.NewString()
 
-	r, _ := s.Repository.ShowByUserID(c, req.UserID)
-	if r != nil {
-		return nil, errors.New("UserAlreadyRanger")
+	var user *user.User
+	var errUser error
+
+	if req.UserID != nil {
+		r, _ := s.Repository.ShowByUserID(c, *req.UserID)
+		if r != nil {
+			return nil, errors.New("UserAlreadyRanger")
+		}
+
+		user, errUser = s.UserService.Show(c, *req.UserID)
+		if errUser != nil {
+			return nil, errUser
+		}
 	}
-	user, errUser := s.UserService.Show(c, req.UserID)
-	if errUser != nil {
-		return nil, errUser
+
+	if req.User != nil && req.UserID == nil {
+		user, errUser = s.UserService.CreateRanger(c, req.User)
+		if errUser != nil {
+			return nil, errUser
+		}
 	}
 
 	ranger.UserID = user.ID

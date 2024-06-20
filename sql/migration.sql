@@ -98,7 +98,7 @@ CREATE TABLE "agenda" (
   "location" varchar NOT NULL,
   "start_at" timestamp NOT NULL,
   "divisi_id" varchar NOT NULL,
-  "leader_id" varchar NOT NULL,
+  "user_id" varchar NOT NULL,
   "created_at" timestamp DEFAULT (now()),
   "updated_at" timestamp DEFAULT (now()),
   "deleted_at" timestamp
@@ -134,7 +134,7 @@ ALTER TABLE "rangers" ADD FOREIGN KEY ("divisi_id") REFERENCES "divisi" ("id");
 
 ALTER TABLE "agenda" ADD FOREIGN KEY ("divisi_id") REFERENCES "divisi" ("id");
 
-ALTER TABLE "agenda" ADD FOREIGN KEY ("leader_id") REFERENCES "users" ("id");
+ALTER TABLE "agenda" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
 
 ALTER TABLE "ranger_presences" ADD FOREIGN KEY ("ranger_id") REFERENCES "rangers" ("id");
 

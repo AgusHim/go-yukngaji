@@ -1,6 +1,7 @@
 package ranger
 
 import (
+	"mainyuk/internal/user"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -27,6 +28,7 @@ type User struct {
 	Role     string `json:"role"`
 	Address  string `json:"address"`
 	Activity string `json:"activity"`
+	Phone    string `json:"phone"`
 }
 
 type Divisi struct {
@@ -50,8 +52,9 @@ type Agenda struct {
 }
 
 type CreateRanger struct {
-	UserID   string `json:"user_id" binding:"required"`
-	DivisiID string `json:"divisi_id" binding:"required"`
+	UserID   *string          `json:"user_id"`
+	DivisiID string           `json:"divisi_id" binding:"required"`
+	User     *user.CreateUser `json:"user" gorm:"-"`
 }
 
 type Repository interface {

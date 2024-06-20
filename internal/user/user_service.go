@@ -132,3 +132,43 @@ func (s *service) Show(c *gin.Context, id string) (*User, error) {
 	}
 	return event, nil
 }
+
+func (s *service) CreateRanger(c *gin.Context, req *CreateUser) (*User, error) {
+	u, _ := s.GetUserByEmail(c, req.Email)
+	if u != nil {
+		return nil, errors.New("EmailRegistered")
+	}
+	user := &User{}
+	user.ID = uuid.NewString()
+	user.Name = req.Name
+	user.Username = req.Username
+	user.Gender = req.Gender
+
+	age, errAge := strconv.Atoi(req.Age)
+	if errAge != nil {
+		return nil, errAge
+	}
+	user.Age = age
+
+	user.Phone = req.Phone
+	user.Email = req.Email
+	user.Address = req.Address
+	user.Role = "ranger"
+
+	activity := strings.ToLower(req.Activity)
+	user.Activity = &activity
+
+	hash, errHash := utils.HashPassword(req.Password)
+	if errHash != nil {
+		return nil, errHash
+	}
+	user.Password = hash
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+
+	user, err := s.Repository.CreateUser(c, user)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}

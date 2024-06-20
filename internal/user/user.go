@@ -54,6 +54,7 @@ type Service interface {
 	Show(c *gin.Context, id string) (*User, error)
 	Presence(c *gin.Context, user *CreateUser) (*User, error)
 	DeleteByID(c *gin.Context, id string) error
+	CreateRanger(c *gin.Context, user *CreateUser) (*User, error)
 }
 
 type Handler interface {
