@@ -43,14 +43,14 @@ func (r *repository) ShowByCode(c *gin.Context, code string) (*Event, error) {
 
 func (r *repository) Index(c *gin.Context) ([]*Event, error) {
 	var events []*Event
-	err := r.db.Where("deleted_at IS NULL").Preload("Divisi").Find(&events).Error
+	err := r.db.Where("deleted_at IS NULL").Preload("Divisi").Order("created_at DESC").Find(&events).Error
 	if err != nil {
 		return nil, err
 	}
 	return events, nil
 }
 
-func (r *repository) Update(c *gin.Context, event *Event) (*Event, error) {
+func (r *repository) Update(c *gin.Context, id string, event *Event) (*Event, error) {
 	err := r.db.Save(&event).Error
 	if err != nil {
 		return nil, err

@@ -23,6 +23,14 @@ func (r *repository) Create(c *gin.Context, agenda *Agenda) (*Agenda, error) {
 	return agenda, nil
 }
 
+func (r *repository) Update(c *gin.Context, id string, agenda *Agenda) (*Agenda, error) {
+	err := r.db.Where("id = ?", id).Updates(agenda).Error
+	if err != nil {
+		return nil, err
+	}
+	return agenda, nil
+}
+
 func (r *repository) Show(c *gin.Context, id string) (*Agenda, error) {
 	agenda := &Agenda{}
 	err := r.db.Preload("User").Preload("Divisi").Where("id = ?", id).First(&agenda).Error
@@ -42,9 +50,18 @@ func (r *repository) Index(c *gin.Context) ([]*Agenda, error) {
 		query.Where("divisi_id = ?", eventID)
 	}
 
-	err := query.Preload("User").Preload("Divisi").Where("deleted_at is NULL").Order("created_at ASC").Find(&agendas).Error
+	err := query.Preload("User").Preload("Divisi").Where("deleted_at is NULL").Order("created_at DESC").Find(&agendas).Error
 	if err != nil {
 		return nil, err
 	}
 	return agendas, nil
+}
+
+func (r *repository) Delete(c *gin.Context, id string) error {
+	agenda := &Agenda{}
+	err := r.db.Where("id = ?", id).Delete(&agenda).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }

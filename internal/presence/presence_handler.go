@@ -2,6 +2,7 @@ package presence
 
 import (
 	"fmt"
+	"mainyuk/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -43,7 +44,19 @@ func (h *handler) Create(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, res)
+
+	token, err := utils.GenerateJWT(res.User.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "error generate token",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"presence":     res,
+		"access_token": token,
+	})
 }
 
 func (h *handler) Show(c *gin.Context) {

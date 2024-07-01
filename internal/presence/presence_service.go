@@ -81,7 +81,7 @@ func (s *service) Create(c *gin.Context, req *CreatePresence) (*Presence, error)
 	}
 	// ++ participant from event
 	event.Participant = event.Participant + 1
-	_, errUpdateEvent := s.EventService.Update(c, event)
+	_, errUpdateEvent := s.EventService.Update(c, event.ID, event)
 	if errUpdateEvent != nil {
 		return nil, err
 	}

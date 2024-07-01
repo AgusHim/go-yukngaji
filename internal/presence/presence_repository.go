@@ -1,6 +1,10 @@
 package presence
 
 import (
+	"errors"
+	"mainyuk/internal/user"
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -34,7 +38,7 @@ func (r *repository) Show(c *gin.Context, id string) (*Presence, error) {
 
 func (r *repository) FindByUserID(c *gin.Context, id string, eventID string) (*Presence, error) {
 	presence := &Presence{}
-	err := r.db.Preload("User").Preload("Event").Where("user_id = ?", id).Where("event_id = ?",eventID).Where("deleted_at IS NULL").First(&presence).Error
+	err := r.db.Preload("User").Preload("Event").Where("user_id = ?", id).Where("event_id = ?", eventID).Where("deleted_at IS NULL").First(&presence).Error
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +54,22 @@ func (r *repository) Index(c *gin.Context) ([]*Presence, error) {
 	if eventID != "" {
 		query.Where("event_id = ?", eventID)
 	}
+
+	if strings.Contains(c.FullPath(), "user_api/presence") {
+		u, exists := c.Get("currentUser")
+		if !exists {
+			return nil, errors.New("NotAuthrized")
+		}
+
+		currentUser, ok := u.(user.User)
+
+		if !ok {
+			return nil, errors.New("FailedParsing: current user")
+		}
+
+		query.Where("user_id = ?", currentUser.ID)
+	}
+
 	err := query.Preload("User").Preload("Event").Where("deleted_at IS NULL").Find(&presences).Error
 	if err != nil {
 		return nil, err

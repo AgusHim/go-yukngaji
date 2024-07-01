@@ -35,12 +35,33 @@ type CreateEvent struct {
 	EndAt    string `json:"end_at" binding:"required"`
 }
 
+func CreateEventToEvent(value CreateEvent) (res *Event, err error) {
+	event := Event{}
+	event.Title = value.Title
+	event.Desc = value.Desc
+	event.ImageUrl = value.ImageUrl
+	event.Speaker = value.Speaker
+	event.DivisiID = value.DivisiID
+	startAt, errParsed := time.Parse("2006-01-02T15:04", value.StartAt)
+	if errParsed != nil {
+		return nil, errParsed
+	}
+	endAt, errParsed := time.Parse("2006-01-02T15:04", value.EndAt)
+	if errParsed != nil {
+		return nil, errParsed
+	}
+	event.StartAt = startAt
+	event.EndAt = endAt
+
+	return &event, nil
+}
+
 type Repository interface {
 	Create(ctx *gin.Context, event *Event) (*Event, error)
 	Show(ctx *gin.Context, slug string) (*Event, error)
 	ShowByCode(ctx *gin.Context, code string) (*Event, error)
 	Index(ctx *gin.Context) ([]*Event, error)
-	Update(ctx *gin.Context, event *Event) (*Event, error)
+	Update(ctx *gin.Context, id string, event *Event) (*Event, error)
 }
 
 type Service interface {
@@ -48,10 +69,11 @@ type Service interface {
 	Show(ctx *gin.Context, slug string) (*Event, error)
 	ShowByCode(ctx *gin.Context, code string) (*Event, error)
 	Index(ctx *gin.Context) ([]*Event, error)
-	Update(ctx *gin.Context, event *Event) (*Event, error)
+	Update(ctx *gin.Context, id string, event *Event) (*Event, error)
 }
 
 type Handler interface {
+	Update(ctx *gin.Context)
 	Create(ctx *gin.Context)
 	Show(ctx *gin.Context)
 	ShowByCode(ctx *gin.Context)

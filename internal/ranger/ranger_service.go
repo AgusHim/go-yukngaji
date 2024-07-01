@@ -90,3 +90,50 @@ func (s *service) Index(c *gin.Context) ([]*Ranger, error) {
 	}
 	return rangers, nil
 }
+
+// Update Rangers
+func (s *service) Update(c *gin.Context, id string, req *CreateRanger) (*Ranger, error) {
+	// Check rangers and get userID
+	ranger, err := s.Repository.Show(c, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update user data
+	var user user.CreateUser
+	user.Name = req.User.Name
+	user.Gender = req.User.Gender
+	user.Age = req.User.Age
+	user.Phone = req.User.Phone
+	user.Email = req.User.Email
+	user.Username = req.User.Username
+	user.Address = req.User.Address
+	user.Activity = req.User.Activity
+
+	if req.User.Password != nil || *req.User.Password != "" {
+		user.Password = req.User.Password
+	}
+
+	_, errUser := s.UserService.UpdateByAdmin(c, ranger.UserID, &user)
+	if errUser != nil {
+		return nil, errUser
+	}
+
+	ranger, err = s.Repository.Show(c, id)
+	if err != nil {
+		return nil, err
+	}
+	return ranger, nil
+}
+
+func (s *service) Delete(c *gin.Context, id string) error {
+	ranger, err := s.Repository.Show(c, id)
+	if err != nil {
+		return err
+	}
+	err = s.Repository.Delete(c, ranger.ID)
+	if err != nil {
+		return err
+	}
+	return nil
+}

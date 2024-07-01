@@ -27,7 +27,7 @@ func (r *repository) Create(c *gin.Context, ranger *Ranger) (*Ranger, error) {
 
 func (r *repository) Show(c *gin.Context, id string) (*Ranger, error) {
 	ranger := &Ranger{}
-	err := r.db.Preload("User").Preload("Divisi").Where("id = ?", id).First(&ranger).Error
+	err := r.db.Preload("User").Preload("Divisi").Where("id = ?", id).Where("deleted_at is NULL").First(&ranger).Error
 	if err != nil {
 		return nil, err
 	}
@@ -83,4 +83,21 @@ func (r *repository) Index(c *gin.Context) ([]*Ranger, error) {
 	}
 
 	return rangers, nil
+}
+
+func (r *repository) Update(c *gin.Context, id string, ranger *Ranger) (*Ranger, error) {
+	err := r.db.Where("id = ?", id).Updates(ranger).Error
+	if err != nil {
+		return nil, err
+	}
+	return ranger, nil
+}
+
+func (r *repository) Delete(c *gin.Context, id string) error {
+	ranger := &Ranger{}
+	err := r.db.Where("id = ?", id).Updates(&ranger).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }

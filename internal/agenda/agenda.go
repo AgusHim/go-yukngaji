@@ -45,16 +45,22 @@ type Repository interface {
 	Create(ctx *gin.Context, agenda *Agenda) (*Agenda, error)
 	Show(ctx *gin.Context, id string) (*Agenda, error)
 	Index(ctx *gin.Context) ([]*Agenda, error)
+	Update(ctx *gin.Context, id string, agenda *Agenda) (*Agenda, error)
+	Delete(ctx *gin.Context, id string) error
 }
 
 type Service interface {
-	Create(ctx *gin.Context, req *CreateAgenda) (*Agenda, error)
+	Create(ctx *gin.Context, agenda *CreateAgenda) (*Agenda, error)
 	Show(ctx *gin.Context, id string) (*Agenda, error)
 	Index(ctx *gin.Context) ([]*Agenda, error)
+	Update(ctx *gin.Context, id string, agenda *CreateAgenda) (*Agenda, error)
+	Delete(ctx *gin.Context, id string) error
 }
 
 type Handler interface {
 	Create(ctx *gin.Context)
 	Show(ctx *gin.Context)
 	Index(ctx *gin.Context)
+	Update(ctx *gin.Context)
+	Delete(ctx *gin.Context)
 }

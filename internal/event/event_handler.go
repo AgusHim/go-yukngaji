@@ -82,3 +82,25 @@ func (h *handler) Index(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, res)
 }
+
+func (h *handler) Update(c *gin.Context) {
+	id := c.Param("id")
+	var createEvent CreateEvent
+	if err := c.ShouldBindJSON(&createEvent); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid JSON",
+		})
+		return
+	}
+
+	event, _ := CreateEventToEvent(createEvent)
+
+	res, err := h.Service.Update(c, id, event)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintln(err.Error()),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}

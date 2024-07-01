@@ -87,3 +87,37 @@ func (h *handler) Index(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, res)
 }
+
+func (h *handler) Update(c *gin.Context) {
+	id := c.Param("id")
+	var ranger CreateRanger
+	if err := c.ShouldBindJSON(&ranger); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Invalid JSON",
+		})
+		return
+	}
+
+	res, err := h.Service.Update(c, id, &ranger)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintln(err.Error()),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *handler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	err := h.Service.Delete(c, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintln(err.Error()),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Success delete ranger",
+	})
+}

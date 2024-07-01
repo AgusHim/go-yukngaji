@@ -183,3 +183,50 @@ func (m *middleware) AuthRanger(c *gin.Context) {
 
 	c.Set("currentUser", *user)
 }
+
+func (m *middleware) AuthUser(c *gin.Context) {
+
+	/*Check header Bearer*/
+	authHeader := c.GetHeader("Authorization")
+
+	if !strings.Contains(authHeader, "Bearer") {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorize bearer",
+		})
+		return
+	}
+
+	tokenString := ""
+	arrayToken := strings.Split(authHeader, " ")
+	if len(arrayToken) == 2 {
+		tokenString = arrayToken[1]
+	}
+
+	token, err := utils.ValidateJWT(tokenString)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorize validate",
+		})
+		return
+	}
+
+	claim, ok := token.Claims.(jwt.MapClaims)
+
+	if !ok || !token.Valid {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorize claim",
+		})
+		return
+	}
+
+	userID := claim["user_id"].(string)
+
+	user, errUser := m.UserService.Show(c, userID)
+	if errUser != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "Unauthorize not found",
+		})
+		return
+	}
+	c.Set("currentUser", *user)
+}

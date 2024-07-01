@@ -23,7 +23,7 @@ func NewService(repository Repository) Service {
 
 // Register implements Service
 func (s *service) Register(c *gin.Context, req *CreateUser) (*User, error) {
-	u, _ := s.GetUserByEmail(c, req.Email)
+	u, _ := s.GetUserByEmail(c, *req.Email)
 	if u != nil {
 		return nil, errors.New("EmailRegistered")
 	}
@@ -47,11 +47,14 @@ func (s *service) Register(c *gin.Context, req *CreateUser) (*User, error) {
 	activity := strings.ToLower(req.Activity)
 	user.Activity = &activity
 
-	hash, errHash := utils.HashPassword(req.Password)
-	if errHash != nil {
-		return nil, errHash
+	if req.Password != nil {
+		hash, errHash := utils.HashPassword(*req.Password)
+		if errHash != nil {
+			return nil, errHash
+		}
+		user.Password = &hash
 	}
-	user.Password = hash
+
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
@@ -69,7 +72,7 @@ func (s *service) Login(c *gin.Context, req *Login) (*User, error) {
 		return nil, errors.New("EmailNotFound")
 	}
 
-	if err := utils.CheckPassword(req.Password, user.Password); err != nil {
+	if err := utils.CheckPassword(req.Password, *user.Password); err != nil {
 		return nil, errors.New("PasswordNotMatch")
 	}
 
@@ -102,11 +105,14 @@ func (s *service) Presence(c *gin.Context, req *CreateUser) (*User, error) {
 	activity := strings.ToLower(req.Activity)
 	user.Activity = &activity
 
-	hash, errHash := utils.HashPassword("taatbahagia")
-	if errHash != nil {
-		return nil, errHash
+	if req.Password != nil {
+		hash, errHash := utils.HashPassword(*req.Password)
+		if errHash != nil {
+			return nil, errHash
+		}
+		user.Password = &hash
 	}
-	user.Password = hash
+
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
@@ -134,7 +140,7 @@ func (s *service) Show(c *gin.Context, id string) (*User, error) {
 }
 
 func (s *service) CreateRanger(c *gin.Context, req *CreateUser) (*User, error) {
-	u, _ := s.GetUserByEmail(c, req.Email)
+	u, _ := s.GetUserByEmail(c, *req.Email)
 	if u != nil {
 		return nil, errors.New("EmailRegistered")
 	}
@@ -158,11 +164,14 @@ func (s *service) CreateRanger(c *gin.Context, req *CreateUser) (*User, error) {
 	activity := strings.ToLower(req.Activity)
 	user.Activity = &activity
 
-	hash, errHash := utils.HashPassword(req.Password)
-	if errHash != nil {
-		return nil, errHash
+	if req.Password != nil {
+		hash, errHash := utils.HashPassword(*req.Password)
+		if errHash != nil {
+			return nil, errHash
+		}
+		user.Password = &hash
 	}
-	user.Password = hash
+
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
@@ -170,5 +179,46 @@ func (s *service) CreateRanger(c *gin.Context, req *CreateUser) (*User, error) {
 	if err != nil {
 		return nil, err
 	}
+	return user, nil
+}
+
+func (s *service) UpdateByAdmin(c *gin.Context, id string, u *CreateUser) (*User, error) {
+	// Check User in Database
+	user, err := s.Repository.Show(c, id)
+	if err != nil {
+		return nil, err
+	}
+
+	user.Name = u.Name
+	user.Gender = u.Gender
+
+	user.Age, err = strconv.Atoi(u.Age)
+	if err != nil {
+		return nil, err
+	}
+
+	user.Phone = u.Phone
+	user.Username = u.Username
+	user.Address = u.Address
+	user.Activity = &u.Activity
+	if u.Email != nil {
+		user.Email = u.Email
+	}
+
+	if u.Password != nil && *u.Password != "" {
+		hash, errHash := utils.HashPassword(*u.Password)
+		if errHash != nil {
+			return nil, errHash
+		}
+		user.Password = &hash
+	}
+
+	user.UpdatedAt = time.Now()
+
+	user, err = s.Repository.UpdateByAdmin(c, id, user)
+	if err != nil {
+		return nil, err
+	}
+
 	return user, nil
 }

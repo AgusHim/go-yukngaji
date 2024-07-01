@@ -49,6 +49,14 @@ func (r *repository) Show(c *gin.Context, id string) (*User, error) {
 	return user, nil
 }
 
+func (r *repository) UpdateByAdmin(c *gin.Context, id string, user *User) (*User, error) {
+	err := r.db.Where("id = ?", id).Save(user).Error
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func NewRepository(db *gorm.DB) Repository {
 	return &repository{
 		db: db,

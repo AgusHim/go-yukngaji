@@ -48,16 +48,21 @@ func InitRouter(
 	r.Use(cors.New(config))
 
 	api := r.Group("api")
+	user_api := r.Group("user_api")
 	ranger_api := r.Group("ranger_api")
 	admin_api := r.Group("admin_api")
 
 	api.POST("/register", userHandler.Register)
 	api.POST("/login", userHandler.Login)
+	user_api.PUT("/auth", authMiddleware.AuthUser, userHandler.UpdateAuth)
+	admin_api.PUT("/users/:id", authMiddleware.AuthPJ, userHandler.UpdateByAdmin)
+	admin_api.GET("/users/:id", authMiddleware.AuthPJ, userHandler.Show)
 
 	api.POST("/events", authMiddleware.AuthAdmin, eventHandler.Create)
 	api.GET("/events/:slug", eventHandler.Show)
 	api.GET("/events/code/:code", eventHandler.ShowByCode)
 	api.GET("/events", authMiddleware.AuthAdmin, eventHandler.Index)
+	api.PUT("/events/:id", authMiddleware.AuthAdmin, eventHandler.Create)
 
 	admin_api.POST("/divisi", authMiddleware.AuthPJ, divisiHandler.Create)
 	admin_api.GET("/divisi/:slug", authMiddleware.AuthPJ, divisiHandler.Show)
@@ -66,6 +71,7 @@ func InitRouter(
 	api.POST("/presence", presenceHandler.Create)
 	api.GET("/presence/:slug", presenceHandler.Show)
 	api.GET("/presence", authMiddleware.AuthAdmin, presenceHandler.Index)
+	user_api.GET("/presence", authMiddleware.AuthUser, presenceHandler.Index)
 
 	api.POST("/comments", commentHandler.Create)
 	api.GET("/comments", commentHandler.Index)
@@ -80,11 +86,15 @@ func InitRouter(
 	admin_api.POST("/agenda", authMiddleware.AuthPJ, agendaHandler.Create)
 	admin_api.GET("/agenda/:id", authMiddleware.AuthPJ, agendaHandler.Show)
 	admin_api.GET("/agenda", authMiddleware.AuthPJ, agendaHandler.Index)
+	admin_api.PUT("/agenda/:id", authMiddleware.AuthPJ, agendaHandler.Update)
+	admin_api.DELETE("/agenda/:id", authMiddleware.AuthPJ, agendaHandler.Delete)
 
 	admin_api.POST("/rangers", authMiddleware.AuthPJ, rangerHandler.Create)
 	ranger_api.GET("/rangers/me", authMiddleware.AuthRanger, rangerHandler.Show)
 	admin_api.GET("/rangers/:id", authMiddleware.AuthPJ, rangerHandler.Show)
 	admin_api.GET("/rangers", authMiddleware.AuthPJ, rangerHandler.Index)
+	admin_api.PUT("/rangers/:id", authMiddleware.AuthPJ, rangerHandler.Update)
+	admin_api.DELETE("/rangers/:id", authMiddleware.AuthPJ, rangerHandler.Delete)
 
 	admin_api.POST("/rangers/presence", authMiddleware.AuthPJ, rangerPresenceHandler.Create)
 	admin_api.GET("/rangers/presence/:id", authMiddleware.AuthPJ, rangerPresenceHandler.Show)

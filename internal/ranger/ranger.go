@@ -23,12 +23,14 @@ type Ranger struct {
 type User struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
+	Username string `json:"username"`
 	Age      int    `json:"age"`
 	Gender   string `json:"gender"`
 	Role     string `json:"role"`
 	Address  string `json:"address"`
 	Activity string `json:"activity"`
 	Phone    string `json:"phone"`
+	Email    string `json:"email"`
 }
 
 type Divisi struct {
@@ -62,6 +64,8 @@ type Repository interface {
 	Show(ctx *gin.Context, id string) (*Ranger, error)
 	ShowByUserID(ctx *gin.Context, userID string) (*Ranger, error)
 	Index(ctx *gin.Context) ([]*Ranger, error)
+	Delete(ctx *gin.Context, id string) error
+	Update(ctx *gin.Context, id string, ranger *Ranger) (*Ranger, error)
 }
 
 type Service interface {
@@ -69,10 +73,14 @@ type Service interface {
 	Show(ctx *gin.Context, id string) (*Ranger, error)
 	ShowByUserID(ctx *gin.Context, userID string) (*Ranger, error)
 	Index(ctx *gin.Context) ([]*Ranger, error)
+	Update(ctx *gin.Context, id string, req *CreateRanger) (*Ranger, error)
+	Delete(ctx *gin.Context, id string) error
 }
 
 type Handler interface {
 	Create(ctx *gin.Context)
 	Show(ctx *gin.Context)
 	Index(ctx *gin.Context)
+	Update(ctx *gin.Context)
+	Delete(ctx *gin.Context)
 }
