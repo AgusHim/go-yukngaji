@@ -99,6 +99,16 @@ func (s *service) Update(c *gin.Context, id string, req *CreateRanger) (*Ranger,
 		return nil, err
 	}
 
+	// Update divisi_id
+	if ranger.DivisiID != req.DivisiID {
+		ranger.DivisiID = req.DivisiID
+		ranger.UpdatedAt = time.Now()
+		_, err = s.Repository.Update(c, id, ranger)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Update user data
 	var user user.CreateUser
 	user.Name = req.User.Name
@@ -131,7 +141,12 @@ func (s *service) Delete(c *gin.Context, id string) error {
 	if err != nil {
 		return err
 	}
-	err = s.Repository.Delete(c, ranger.ID)
+	now := time.Now()
+
+	ranger.UpdatedAt = now
+	ranger.DeletedAt = &now
+
+	err = s.Repository.Delete(c, ranger.ID, ranger)
 	if err != nil {
 		return err
 	}

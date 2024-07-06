@@ -36,7 +36,7 @@ func (r *repository) Show(c *gin.Context, id string) (*Ranger, error) {
 
 func (r *repository) ShowByUserID(c *gin.Context, userID string) (*Ranger, error) {
 	ranger := &Ranger{}
-	err := r.db.Preload("User").Preload("Divisi").Where("user_id = ?", userID).First(&ranger).Error
+	err := r.db.Preload("User").Preload("Divisi").Where("user_id = ?", userID).Where("deleted_at is NULL").First(&ranger).Error
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +93,7 @@ func (r *repository) Update(c *gin.Context, id string, ranger *Ranger) (*Ranger,
 	return ranger, nil
 }
 
-func (r *repository) Delete(c *gin.Context, id string) error {
-	ranger := &Ranger{}
+func (r *repository) Delete(c *gin.Context, id string, ranger *Ranger) error {
 	err := r.db.Where("id = ?", id).Updates(&ranger).Error
 	if err != nil {
 		return err

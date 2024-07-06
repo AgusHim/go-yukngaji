@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"mainyuk/db"
 	"mainyuk/internal/agenda"
@@ -17,6 +18,7 @@ import (
 	"mainyuk/internal/ws"
 	"mainyuk/router"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -79,6 +81,11 @@ func main() {
 	go hub.Run()
 
 	router.InitRouter(authMiddleware, userHandler, eventHandler, divisiHandler, presenceHandler, commentHandler, likeHandler, feedbackHandler, wsHandler, agendaHandler, rangerHandler, rangerPresenceHandler)
+
+	// output current time zone
+	fmt.Print("Local time zone ")
+	fmt.Println(time.Now().Zone())
+	fmt.Println(time.Now().Format("2006-01-02T15:04:05.000 MST"))
 
 	host := os.Getenv("HOST")
 	router.Start(host)

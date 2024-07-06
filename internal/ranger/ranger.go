@@ -64,7 +64,7 @@ type Repository interface {
 	Show(ctx *gin.Context, id string) (*Ranger, error)
 	ShowByUserID(ctx *gin.Context, userID string) (*Ranger, error)
 	Index(ctx *gin.Context) ([]*Ranger, error)
-	Delete(ctx *gin.Context, id string) error
+	Delete(ctx *gin.Context, id string, ranger *Ranger) error
 	Update(ctx *gin.Context, id string, ranger *Ranger) (*Ranger, error)
 }
 

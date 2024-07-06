@@ -1,6 +1,12 @@
 # Start from the official Golang image
 FROM golang:alpine
 
+# Install tzdata for timezone data
+RUN apk add --no-cache tzdata
+
+# Set the timezone
+ENV TZ=Asia/Jakarta
+
 # Set the working directory inside the container
 WORKDIR /app
 
