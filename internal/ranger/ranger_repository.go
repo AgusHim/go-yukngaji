@@ -86,7 +86,7 @@ func (r *repository) Index(c *gin.Context) ([]*Ranger, error) {
 }
 
 func (r *repository) Update(c *gin.Context, id string, ranger *Ranger) (*Ranger, error) {
-	err := r.db.Where("id = ?", id).Updates(ranger).Error
+	err := r.db.Where("id = ?", id).Updates(&ranger).Error
 	if err != nil {
 		return nil, err
 	}

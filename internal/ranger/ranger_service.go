@@ -102,7 +102,9 @@ func (s *service) Update(c *gin.Context, id string, req *CreateRanger) (*Ranger,
 	// Update divisi_id
 	if ranger.DivisiID != req.DivisiID {
 		ranger.DivisiID = req.DivisiID
+		ranger.Divisi.ID = req.DivisiID
 		ranger.UpdatedAt = time.Now()
+
 		_, err = s.Repository.Update(c, id, ranger)
 		if err != nil {
 			return nil, err
