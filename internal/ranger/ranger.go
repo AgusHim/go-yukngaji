@@ -8,16 +8,17 @@ import (
 )
 
 type Ranger struct {
-	ID        string     `json:"id" binding:"required"`
-	UserID    string     `json:"-" binding:"required"`
-	User      *User      `json:"user"`
-	DivisiID  string     `json:"-" binding:"required"`
-	Divisi    *Divisi    `json:"divisi"`
-	Present   *int       `json:"present" gorm:"-"`
-	Absent    *int       `json:"absent" gorm:"-"`
-	CreatedAt time.Time  `json:"created_at" binding:"required"`
-	UpdatedAt time.Time  `json:"-" binding:"required"`
-	DeletedAt *time.Time `json:"-" binding:"required"`
+	ID            string     `json:"id" binding:"required"`
+	UserID        string     `json:"-" binding:"required"`
+	User          *User      `json:"user"`
+	DivisiID      string     `json:"-" binding:"required"`
+	Divisi        *Divisi    `json:"divisi"`
+	Present       *int       `json:"present" gorm:"-"`
+	PresentDivisi *int       `json:"present_divisi" gorm:"-"`
+	AbsentDivisi  *int       `json:"absent_divisi" gorm:"-"`
+	CreatedAt     time.Time  `json:"created_at" binding:"required"`
+	UpdatedAt     time.Time  `json:"-" binding:"required"`
+	DeletedAt     *time.Time `json:"-" binding:"required"`
 }
 
 type User struct {

@@ -1,6 +1,8 @@
 package ranger_presence
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -56,6 +58,24 @@ func (r *repository) Index(c *gin.Context) ([]*RangerPresence, error) {
 
 	if agendaID != "" {
 		query.Where("agenda_id = ?", agendaID)
+	}
+
+	startAt := c.Query("start_at")
+	endAt := c.Query("end_at")
+	if startAt != "" && endAt != "" {
+		start, errParsed := time.Parse("02-01-2006", startAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		end, errParsed := time.Parse("02-01-2006", endAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		query.Where("created_at BETWEEN ? AND ?", start, end)
+	}
+
+	if divisiID != "" {
+		query.Where("divisi_id = ?", divisiID)
 	}
 	query.Where("deleted_at is NULL").Order("created_at ASC")
 

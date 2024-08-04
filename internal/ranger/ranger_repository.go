@@ -2,6 +2,7 @@ package ranger
 
 import (
 	"mainyuk/internal/agenda"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -59,27 +60,23 @@ func (r *repository) Index(c *gin.Context) ([]*Ranger, error) {
 		return nil, err
 	}
 
-	queryAgenda := tx.Model(&agenda.Agenda{})
-	if divisiID != "" {
-		queryAgenda.Where("divisi_id = ?", divisiID)
-	}
-	var totalAgenda int64
-	queryAgenda.Count(&totalAgenda)
-
 	for _, ranger := range rangers {
-		queryPresence := tx.Model(&RangerPresence{})
-		var countPresent int64
-		queryPresence.Where("ranger_id = ?", ranger.ID)
 
-		if divisiID != "" {
-			queryPresence.Where("divisi_id = ?", divisiID)
+		ranger.Present, err = r.CountPresentNonDivisi(c, ranger)
+		if err != nil {
+			return nil, err
 		}
-		queryPresence.Count(&countPresent)
-		count := int(countPresent)
-		ranger.Present = &count
+		ranger.PresentDivisi, err = r.CountPresentOnDivisi(c, ranger)
+		if err != nil {
+			return nil, err
+		}
 
-		absent := int(totalAgenda) - int(countPresent)
-		ranger.Absent = &absent
+		totalAgenda, err := r.CountAgenda(c, ranger)
+		if err != nil {
+			return nil, err
+		}
+		absent := *totalAgenda - *ranger.PresentDivisi
+		ranger.AbsentDivisi = &absent
 	}
 
 	return rangers, nil
@@ -99,4 +96,94 @@ func (r *repository) Delete(c *gin.Context, id string, ranger *Ranger) error {
 		return err
 	}
 	return nil
+}
+
+func (r *repository) CountAgenda(c *gin.Context, ranger *Ranger) (*int, error) {
+	tx := r.db
+	query := tx.Model(&agenda.Agenda{})
+	query.Where("divisi_id = ?", ranger.DivisiID)
+
+	startAt := c.Query("start_at")
+	endAt := c.Query("end_at")
+
+	if startAt != "" && endAt != "" {
+		start, errParsed := time.Parse("02-01-2006", startAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		end, errParsed := time.Parse("02-01-2006", endAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		query.Where("created_at BETWEEN ? AND ?", start, end)
+	}
+
+	var totalAgenda int64
+	query.Count(&totalAgenda)
+	total := int(totalAgenda)
+	return &total, nil
+}
+
+func (r *repository) CountPresentOnDivisi(c *gin.Context, ranger *Ranger) (*int, error) {
+	tx := r.db
+	query := tx.Model(&RangerPresence{})
+	var countPresent int64
+	query.Where("ranger_id = ?", ranger.ID)
+
+	divisiID := c.Query("divisi_id")
+
+	if divisiID != "" {
+		query.Where("divisi_id = ?", divisiID)
+	}
+
+	startAt := c.Query("start_at")
+	endAt := c.Query("end_at")
+
+	if startAt != "" && endAt != "" {
+		start, errParsed := time.Parse("02-01-2006", startAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		end, errParsed := time.Parse("02-01-2006", endAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		query.Where("created_at BETWEEN ? AND ?", start, end)
+	}
+
+	query.Count(&countPresent)
+	count := int(countPresent)
+	return &count, nil
+}
+
+func (r *repository) CountPresentNonDivisi(c *gin.Context, ranger *Ranger) (*int, error) {
+	tx := r.db
+	query := tx.Model(&RangerPresence{})
+	var countPresent int64
+	query.Where("ranger_id = ?", ranger.ID)
+
+	divisiID := c.Query("divisi_id")
+
+	if divisiID != "" {
+		query.Where("divisi_id != ?", divisiID)
+	}
+
+	startAt := c.Query("start_at")
+	endAt := c.Query("end_at")
+
+	if startAt != "" && endAt != "" {
+		start, errParsed := time.Parse("02-01-2006", startAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		end, errParsed := time.Parse("02-01-2006", endAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		query.Where("created_at BETWEEN ? AND ?", start, end)
+	}
+
+	query.Count(&countPresent)
+	count := int(countPresent)
+	return &count, nil
 }

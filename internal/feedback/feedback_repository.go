@@ -36,11 +36,19 @@ func (r *repository) Index(c *gin.Context) ([]*Feedback, error) {
 		query.Where("event_id = ?", eventID)
 	}
 
-	now := time.Now()
-	start := now.AddDate(0, -12, 0)
-	end := now
-
-	query.Where("created_at BETWEEN ? AND ?", start, end)
+	startAt := c.Query("start_at")
+	endAt := c.Query("end_at")
+	if startAt != "" && endAt != "" {
+		start, errParsed := time.Parse("02-01-2006", startAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		end, errParsed := time.Parse("02-01-2006", endAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		query.Where("created_at BETWEEN ? AND ?", start, end)
+	}
 
 	err := query.Preload("User").Preload("Event").Where("deleted_at is NULL").Order("created_at ASC").Find(&feedback).Error
 	if err != nil {

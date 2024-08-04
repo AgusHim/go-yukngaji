@@ -1,6 +1,8 @@
 package agenda
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -48,6 +50,20 @@ func (r *repository) Index(c *gin.Context) ([]*Agenda, error) {
 
 	if eventID != "" {
 		query.Where("divisi_id = ?", eventID)
+	}
+
+	startAt := c.Query("start_at")
+	endAt := c.Query("end_at")
+	if startAt != "" && endAt != "" {
+		start, errParsed := time.Parse("02-01-2006", startAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		end, errParsed := time.Parse("02-01-2006", endAt)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		query.Where("created_at BETWEEN ? AND ?", start, end)
 	}
 
 	err := query.Preload("User").Preload("Divisi").Where("deleted_at is NULL").Order("created_at DESC").Find(&agendas).Error
