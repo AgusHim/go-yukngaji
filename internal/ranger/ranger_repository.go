@@ -75,7 +75,10 @@ func (r *repository) Index(c *gin.Context) ([]*Ranger, error) {
 		if err != nil {
 			return nil, err
 		}
-		absent := *totalAgenda - *ranger.PresentDivisi
+		absent := 0
+		if *totalAgenda >= *ranger.PresentDivisi {
+			absent = *totalAgenda - *ranger.PresentDivisi
+		}
 		ranger.AbsentDivisi = &absent
 	}
 
@@ -128,13 +131,9 @@ func (r *repository) CountPresentOnDivisi(c *gin.Context, ranger *Ranger) (*int,
 	tx := r.db
 	query := tx.Model(&RangerPresence{})
 	var countPresent int64
+
 	query.Where("ranger_id = ?", ranger.ID)
-
-	divisiID := c.Query("divisi_id")
-
-	if divisiID != "" {
-		query.Where("divisi_id = ?", divisiID)
-	}
+	query.Where("divisi_id = ?", ranger.DivisiID)
 
 	startAt := c.Query("start_at")
 	endAt := c.Query("end_at")
@@ -160,13 +159,9 @@ func (r *repository) CountPresentNonDivisi(c *gin.Context, ranger *Ranger) (*int
 	tx := r.db
 	query := tx.Model(&RangerPresence{})
 	var countPresent int64
+
 	query.Where("ranger_id = ?", ranger.ID)
-
-	divisiID := c.Query("divisi_id")
-
-	if divisiID != "" {
-		query.Where("divisi_id != ?", divisiID)
-	}
+	query.Where("divisi_id != ?", ranger.DivisiID)
 
 	startAt := c.Query("start_at")
 	endAt := c.Query("end_at")
