@@ -19,6 +19,7 @@ type Event struct {
 	Divisi      *divisi.Divisi `json:"divisi"`
 	StartAt     time.Time      `json:"start_at" binding:"required"`
 	EndAt       time.Time      `json:"end_at" binding:"required"`
+	CloseAt     *time.Time     `json:"close_at"`
 	Participant int            `json:"participant"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"-"`
