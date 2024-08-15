@@ -49,7 +49,7 @@ func (s *service) Create(c *gin.Context, req *CreatePresence) (*Presence, error)
 		}
 	}
 	if now.After(event.EndAt) {
-		return nil, errors.New("EventRegisterClosed")
+		return nil, errors.New("EventIsClosed")
 	}
 
 	presence := &Presence{}
