@@ -1,6 +1,7 @@
 package event
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -60,6 +61,27 @@ func (r *repository) Index(c *gin.Context) ([]*Event, error) {
 			return nil, errParsed
 		}
 		query.Where("created_at BETWEEN ? AND ?", start, end)
+	}
+
+	var errConvert error
+	limitStr := c.Query("limit")
+	var limit int = 10
+
+	if limitStr != "" {
+		limit, errConvert = strconv.Atoi(limitStr)
+		if errConvert != nil {
+			return nil, errConvert
+		}
+		query.Limit(limit)
+	}
+
+	pageStr := c.Query("page")
+	if pageStr != "" {
+		page, err := strconv.Atoi(pageStr)
+		if err != nil {
+			return nil, err
+		}
+		query.Offset((page - 1) * limit)
 	}
 
 	err := query.Where("deleted_at IS NULL").Preload("Divisi").Order("created_at DESC").Find(&events).Error
