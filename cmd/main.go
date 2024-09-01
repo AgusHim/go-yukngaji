@@ -11,10 +11,13 @@ import (
 	"mainyuk/internal/event"
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/like"
+	"mainyuk/internal/order"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/ranger"
 	"mainyuk/internal/ranger_presence"
+	"mainyuk/internal/ticket"
 	"mainyuk/internal/user"
+	"mainyuk/internal/user_ticket"
 	"mainyuk/internal/ws"
 	"mainyuk/router"
 	"os"
@@ -78,9 +81,36 @@ func main() {
 	rangerPresenceService := ranger_presence.NewService(rangerPresenceRepository, rangerService, agendaService, divisiService)
 	rangerPresenceHandler := ranger_presence.NewHandler(rangerPresenceService)
 
+	ticketRepository := ticket.NewRepository(db)
+	ticketService := ticket.NewService(ticketRepository)
+	ticketHandler := ticket.NewHandler(ticketService)
+
+	userTicketRepository := user_ticket.NewRepository(db)
+	userTicketService := user_ticket.NewService(userTicketRepository)
+	userTicketHandler := user_ticket.NewHandler(userTicketService)
+
+	orderRepository := order.NewRepository(db)
+	orderService := order.NewService(orderRepository, ticketService, userTicketService)
+	orderHandler := order.NewHandler(orderService)
+
 	go hub.Run()
 
-	router.InitRouter(authMiddleware, userHandler, eventHandler, divisiHandler, presenceHandler, commentHandler, likeHandler, feedbackHandler, wsHandler, agendaHandler, rangerHandler, rangerPresenceHandler)
+	router.InitRouter(
+		authMiddleware,
+		userHandler,
+		eventHandler,
+		divisiHandler,
+		presenceHandler,
+		commentHandler,
+		likeHandler,
+		feedbackHandler,
+		wsHandler,
+		agendaHandler,
+		rangerHandler,
+		rangerPresenceHandler,
+		orderHandler,
+		ticketHandler,
+		userTicketHandler)
 
 	// output current time zone
 	fmt.Print("Local time zone ")

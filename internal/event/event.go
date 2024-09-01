@@ -5,25 +5,32 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 type Event struct {
-	ID          string         `json:"id"`
-	Slug        string         `json:"slug" `
-	Code        string         `json:"code" `
-	Title       string         `json:"title" binding:"required"`
-	Desc        string         `json:"desc" binding:"required"`
-	ImageUrl    string         `json:"image_url" binding:"required"`
-	Speaker     string         `json:"speaker" binding:"required"`
-	DivisiID    string         `json:"-" binding:"required"`
-	Divisi      *divisi.Divisi `json:"divisi"`
-	StartAt     time.Time      `json:"start_at" binding:"required"`
-	EndAt       time.Time      `json:"end_at" binding:"required"`
-	CloseAt     *time.Time     `json:"close_at"`
-	Participant int            `json:"participant"`
-	CreatedAt   time.Time      `json:"created_at"`
-	UpdatedAt   time.Time      `json:"-"`
-	DeletedAt   *time.Time     `json:"-"`
+	ID               string         `json:"id"`
+	Slug             string         `json:"slug" `
+	Code             string         `json:"code" `
+	Title            string         `json:"title" binding:"required"`
+	Desc             string         `json:"desc" binding:"required"`
+	ImageUrl         string         `json:"image_url" binding:"required"`
+	Speaker          string         `json:"speaker" binding:"required"`
+	DivisiID         string         `json:"-" binding:"required"`
+	Divisi           *divisi.Divisi `json:"divisi"`
+	StartAt          time.Time      `json:"start_at" binding:"required"`
+	EndAt            time.Time      `json:"end_at" binding:"required"`
+	CloseAt          *time.Time     `json:"close_at"`
+	Participant      int            `json:"participant"`
+	IsPublished      bool           `json:"isPublished"`
+	IsWhitelistOnly  bool           `json:"isWhitelistOnly"`
+	AllowedGender    string         `json:"allowed_gender" binding:"required"`
+	IsAllowedToOrder bool           `json:"isAllowedToOrder"`
+	LocationTypes    pq.StringArray `json:"location_types" gorm:"type:text[]"`
+	LocationDesc     pq.StringArray `json:"location_desc" gorm:"type:text[]"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"-"`
+	DeletedAt        *time.Time     `json:"-"`
 }
 
 type CreateEvent struct {

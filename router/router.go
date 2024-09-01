@@ -9,10 +9,13 @@ import (
 	"mainyuk/internal/event"
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/like"
+	"mainyuk/internal/order"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/ranger"
 	"mainyuk/internal/ranger_presence"
+	"mainyuk/internal/ticket"
 	"mainyuk/internal/user"
+	"mainyuk/internal/user_ticket"
 	"mainyuk/internal/ws"
 	"os"
 
@@ -35,6 +38,9 @@ func InitRouter(
 	agendaHandler agenda.Handler,
 	rangerHandler ranger.Handler,
 	rangerPresenceHandler ranger_presence.Handler,
+	orderHandler order.Handler,
+	ticketHandler ticket.Handler,
+	userTicketPresenceHandler user_ticket.Handler,
 ) {
 	mode := os.Getenv("GIN_MODE")
 	gin.SetMode(mode)
@@ -101,6 +107,17 @@ func InitRouter(
 
 	admin_api.GET("/rangers/presence", authMiddleware.AuthPJ, rangerPresenceHandler.Index)
 	ranger_api.GET("/rangers/presence", authMiddleware.AuthRanger, rangerPresenceHandler.Index)
+
+	/* Tickets */
+	api.GET("/tickets", authMiddleware.AuthAdmin, ticketHandler.Index)
+	api.POST("/tickets", authMiddleware.AuthAdmin, ticketHandler.Create)
+
+	/* Orders */
+	api.GET("/orders", authMiddleware.AuthUser, orderHandler.Index)
+	api.POST("/orders", authMiddleware.AuthUser, orderHandler.Create)
+	api.GET("/orders/:public_id", orderHandler.ShowByPublicID)
+	admin_api.GET("/orders", authMiddleware.AuthAdmin, orderHandler.Index)
+	admin_api.GET("/orders/:public_id", orderHandler.ShowByPublicID)
 
 	r.GET("/ws/events/:id", wsHandler.ConnectWS)
 }
