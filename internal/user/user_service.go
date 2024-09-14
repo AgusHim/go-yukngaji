@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	oauth2api "google.golang.org/api/oauth2/v2"
 )
 
 type service struct {
@@ -221,4 +222,39 @@ func (s *service) UpdateByAdmin(c *gin.Context, id string, u *CreateUser) (*User
 	}
 
 	return user, nil
+}
+
+func (s *service) AuthGoogleCallback(c *gin.Context, userInfo *oauth2api.Userinfo) (*User, error) {
+	// Check google id in table
+	u, _ := s.Repository.ShowByGoogleID(c, userInfo.Id)
+	if u != nil {
+		return u, nil
+	}
+
+	// Registered new user
+	user := &User{}
+	user.ID = uuid.NewString()
+	user.Name = userInfo.Name
+	user.GoogleID = &userInfo.Id
+	user.ImageUrl = &userInfo.Picture
+	user.Username = "anonim"
+	user.Gender = strings.ToLower(userInfo.Gender)
+
+	user.Age = 0
+	user.Phone = ""
+	user.Email = &userInfo.Email
+	user.Address = ""
+	user.Role = "user"
+
+	activity := ""
+	user.Activity = &activity
+
+	user.CreatedAt = time.Now()
+	user.UpdatedAt = time.Now()
+
+	createdUser, err := s.Repository.CreateUser(c, user)
+	if err != nil {
+		return nil, err
+	}
+	return createdUser, nil
 }

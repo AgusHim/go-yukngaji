@@ -8,8 +8,13 @@ CREATE TABLE "users" (
   "email" varchar,
   "password" varchar,
   "address" varchar,
+  "google_id" varchar,
+  "image_url" varchar,
   "role" varchar DEFAULT ('jamaah'),
   "activity" varchar DEFAULT ('pelajar'),
+  "province_code" varchar,
+  "district_code" varchar,
+  "sub_district_code" varchar,
   "created_at" timestamp DEFAULT (now()),
   "updated_at" timestamp DEFAULT (now()),
   "deleted_at" timestamp
@@ -157,6 +162,7 @@ CREATE TABLE "orders" (
   "id" varchar PRIMARY KEY,
   "public_id" varchar NOT NULL,
   "user_id" varchar NOT NULL,
+  "payment_method_id" varchar NOT NULL,
   "amount" int NOT NULL,
   "donation" integer DEFAULT (0),
   "admin_fee" integer DEFAULT (0),
@@ -164,6 +170,19 @@ CREATE TABLE "orders" (
   "invoice_url" text NOT NULL,
   "invoice_image_url" text NOT NULL,
   "expired_at" timestamp,
+  "created_at" timestamp DEFAULT (now()),
+  "updated_at" timestamp DEFAULT (now()),
+  "deleted_at" timestamp
+);
+
+CREATE TABLE "payment_methods" (
+  "id" varchar PRIMARY KEY,
+  "name" varchar NOT NULL,
+  "type" varchar NOT NULL,
+  "code" varchar NOT NULL,
+  "image_url" text NOT NULL,
+  "account_name" int NOT NULL,
+  "account_number" integer DEFAULT (0),
   "created_at" timestamp DEFAULT (now()),
   "updated_at" timestamp DEFAULT (now()),
   "deleted_at" timestamp
@@ -197,4 +216,5 @@ ALTER TABLE "user_tickets" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id
 ALTER TABLE "user_tickets" ADD FOREIGN KEY ("ticket_id") REFERENCES "tickets" ("id");
 
 ALTER TABLE "orders" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
+ALTER TABLE "orders" ADD FOREIGN KEY ("payment_method_id") REFERENCES "payment_method" ("id");
 

@@ -1,6 +1,7 @@
 package order
 
 import (
+	"mainyuk/internal/payment_method"
 	"mainyuk/internal/user"
 	"mainyuk/internal/user_ticket"
 	"time"
@@ -9,21 +10,23 @@ import (
 )
 
 type Order struct {
-	ID              string                   `json:"id" binding:"required"`
-	PublicID        string                   `json:"public_id"`
-	Amount          int                      `json:"amount" binding:"required"`
-	Donation        int                      `json:"donation" binding:"required"`
-	AdminFee        int                      `json:"description" binding:"required"`
-	Status          string                   `json:"status"`
-	InvoiceUrl      *string                  `json:"invoice_url"`
-	InvoiceImageUrl *string                  `json:"invoice_image_url"`
-	UserID          string                   `json:"-"`
-	User            *user.User               `json:"user" binding:"required"`
-	UserTickets     []user_ticket.UserTicket `json:"user_tickets" gorm:"-"`
-	ExpiredAt       time.Time                `json:"expired_at"`
-	CreatedAt       time.Time                `json:"created_at"`
-	UpdatedAt       time.Time                `json:"-"`
-	DeletedAt       *time.Time               `json:"-"`
+	ID              string                        `json:"id" binding:"required"`
+	PublicID        string                        `json:"public_id"`
+	Amount          int                           `json:"amount" binding:"required"`
+	Donation        int                           `json:"donation" binding:"required"`
+	AdminFee        int                           `json:"admin_fee" binding:"required"`
+	Status          string                        `json:"status"`
+	InvoiceUrl      *string                       `json:"invoice_url"`
+	InvoiceImageUrl *string                       `json:"invoice_image_url"`
+	UserID          string                        `json:"-"`
+	User            *user.User                    `json:"user" binding:"required"`
+	PaymentMethodID string                        `json:"-"`
+	PaymentMethod   *payment_method.PaymentMethod `json:"payment_method" binding:"required"`
+	UserTickets     []user_ticket.UserTicket      `json:"user_tickets" gorm:"-"`
+	ExpiredAt       time.Time                     `json:"expired_at"`
+	CreatedAt       time.Time                     `json:"created_at"`
+	UpdatedAt       time.Time                     `json:"-"`
+	DeletedAt       *time.Time                    `json:"-"`
 }
 
 type CreateOrder struct {

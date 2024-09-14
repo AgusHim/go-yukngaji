@@ -1,27 +1,37 @@
 package user
 
 import (
+	"mainyuk/internal/region"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	oauth2api "google.golang.org/api/oauth2/v2"
 )
 
 type User struct {
-	ID        string     `json:"id" `
-	Name      string     `json:"name" binding:"required"`
-	Username  string     `json:"username" binding:"required"`
-	Gender    string     `json:"gender" binding:"required"`
-	Age       int        `json:"age" binding:"required"`
-	Phone     string     `json:"phone" binding:"required"`
-	Email     *string    `json:"email" binding:"required"`
-	Address   string     `json:"address" binding:"required"`
-	Password  *string    `json:"-" binding:"required"`
-	Role      string     `json:"role"`
-	Activity  *string    `json:"activity"`
-	CreatedAt time.Time  `json:"created_at" `
-	UpdatedAt time.Time  `json:"-" `
-	DeletedAt *time.Time `json:"-" `
+	ID              string         `json:"id" `
+	Name            string         `json:"name" binding:"required"`
+	Username        string         `json:"username" binding:"required"`
+	Gender          string         `json:"gender" binding:"required"`
+	Age             int            `json:"age" binding:"required"`
+	Phone           string         `json:"phone" binding:"required"`
+	Email           *string        `json:"email" binding:"required"`
+	Address         string         `json:"address" binding:"required"`
+	Password        *string        `json:"-" binding:"required"`
+	Role            string         `json:"role"`
+	Activity        *string        `json:"activity"`
+	GoogleID        *string        `json:"-" gorm:"google_id"`
+	ImageUrl        *string        `json:"image_url"`
+	ProvinceCode    string         `json:"-" gorm:"province_code;size:2"`                                    // Stores the first 2 digits of the ID
+	DistrictCode    string         `json:"-" gorm:"district_code;size:5"`                                    // Stores the first 5 digits of the ID
+	SubDistrictCode string         `json:"-" gorm:"sub_district_code;size:8"`                                // Stores the first 8 digits of the code
+	Province        *region.Region `json:"province" gorm:"foreignKey:province_code;references:code"`         // Relation to Province
+	District        *region.Region `json:"district" gorm:"foreignKey:district_code;references:code"`         // Relation to District
+	SubDistrict     *region.Region `json:"sub_district" gorm:"foreignKey:sub_district_code;references:code"` // Relation to Sub-district
+	CreatedAt       time.Time      `json:"created_at" `
+	UpdatedAt       time.Time      `json:"-" `
+	DeletedAt       *time.Time     `json:"-" `
 }
 
 type Login struct {
@@ -66,6 +76,7 @@ type Repository interface {
 	DeleteByID(c *gin.Context, id string) error
 	Show(c *gin.Context, id string) (*User, error)
 	UpdateByAdmin(c *gin.Context, id string, user *User) (*User, error)
+	ShowByGoogleID(c *gin.Context, id string) (*User, error)
 }
 
 type Service interface {
@@ -77,6 +88,7 @@ type Service interface {
 	DeleteByID(c *gin.Context, id string) error
 	CreateRanger(c *gin.Context, user *CreateUser) (*User, error)
 	UpdateByAdmin(c *gin.Context, id string, user *CreateUser) (*User, error)
+	AuthGoogleCallback(c *gin.Context, userInfo *oauth2api.Userinfo) (*User, error)
 }
 
 type Handler interface {
@@ -85,4 +97,6 @@ type Handler interface {
 	UpdateByAdmin(c *gin.Context)
 	UpdateAuth(c *gin.Context)
 	Show(c *gin.Context)
+	AuthGoogleLogin(c *gin.Context)
+	AuthGoogleCallback(c *gin.Context)
 }

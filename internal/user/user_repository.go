@@ -57,6 +57,15 @@ func (r *repository) UpdateByAdmin(c *gin.Context, id string, user *User) (*User
 	return user, nil
 }
 
+func (r *repository) ShowByGoogleID(c *gin.Context, id string) (*User, error) {
+	user := &User{}
+	err := r.db.Where("google_id = ?", id).Where("deleted_at IS NULL").First(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
 func NewRepository(db *gorm.DB) Repository {
 	return &repository{
 		db: db,

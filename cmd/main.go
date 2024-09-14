@@ -12,9 +12,11 @@ import (
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/like"
 	"mainyuk/internal/order"
+	"mainyuk/internal/payment_method"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/ranger"
 	"mainyuk/internal/ranger_presence"
+	"mainyuk/internal/region"
 	"mainyuk/internal/ticket"
 	"mainyuk/internal/user"
 	"mainyuk/internal/user_ticket"
@@ -36,6 +38,7 @@ func main() {
 	if err != nil {
 		go log.Fatalf("Could not initialize DB Connection: %s", err)
 	}
+
 	hub := ws.NewHub()
 	wsHandler := ws.NewHandler(hub)
 
@@ -93,6 +96,14 @@ func main() {
 	orderService := order.NewService(orderRepository, ticketService, userTicketService)
 	orderHandler := order.NewHandler(orderService)
 
+	paymentMethodRepository := payment_method.NewRepository(db)
+	paymentMethodService := payment_method.NewService(paymentMethodRepository)
+	paymentMethodHandler := payment_method.NewHandler(paymentMethodService)
+
+	regionRepository := region.NewRepository(db)
+	regionService := region.NewService(regionRepository)
+	regionHandler := region.NewHandler(regionService)
+
 	go hub.Run()
 
 	router.InitRouter(
@@ -110,7 +121,10 @@ func main() {
 		rangerPresenceHandler,
 		orderHandler,
 		ticketHandler,
-		userTicketHandler)
+		userTicketHandler,
+		paymentMethodHandler,
+		regionHandler,
+	)
 
 	// output current time zone
 	fmt.Print("Local time zone ")

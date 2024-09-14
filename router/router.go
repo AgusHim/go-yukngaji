@@ -10,9 +10,11 @@ import (
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/like"
 	"mainyuk/internal/order"
+	"mainyuk/internal/payment_method"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/ranger"
 	"mainyuk/internal/ranger_presence"
+	"mainyuk/internal/region"
 	"mainyuk/internal/ticket"
 	"mainyuk/internal/user"
 	"mainyuk/internal/user_ticket"
@@ -41,6 +43,8 @@ func InitRouter(
 	orderHandler order.Handler,
 	ticketHandler ticket.Handler,
 	userTicketPresenceHandler user_ticket.Handler,
+	paymentMethodHandler payment_method.Handler,
+	regionHandler region.Handler,
 ) {
 	mode := os.Getenv("GIN_MODE")
 	gin.SetMode(mode)
@@ -60,6 +64,8 @@ func InitRouter(
 
 	api.POST("/register", userHandler.Register)
 	api.POST("/login", userHandler.Login)
+	api.GET("/auth/google/login", userHandler.AuthGoogleLogin)
+	api.GET("/auth/google/callback", userHandler.AuthGoogleCallback)
 	user_api.PUT("/auth", authMiddleware.AuthUser, userHandler.UpdateAuth)
 	admin_api.PUT("/users/:id", authMiddleware.AuthPJ, userHandler.UpdateByAdmin)
 	admin_api.GET("/users/:id", authMiddleware.AuthPJ, userHandler.Show)
@@ -118,6 +124,15 @@ func InitRouter(
 	api.GET("/orders/:public_id", orderHandler.ShowByPublicID)
 	admin_api.GET("/orders", authMiddleware.AuthAdmin, orderHandler.Index)
 	admin_api.GET("/orders/:public_id", orderHandler.ShowByPublicID)
+
+	/* Payment Method */
+	user_api.GET("/payment_methods", authMiddleware.AuthUser, paymentMethodHandler.Index)
+	admin_api.POST("/payment_methods", authMiddleware.AuthAdmin, paymentMethodHandler.Create)
+
+	/* Region */
+	api.GET("/province", regionHandler.Index)
+	api.GET("/district", regionHandler.Index)
+	api.GET("/sub_district", regionHandler.Index)
 
 	r.GET("/ws/events/:id", wsHandler.ConnectWS)
 }

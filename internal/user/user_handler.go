@@ -1,18 +1,42 @@
 package user
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
+	"log"
 	"mainyuk/utils"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	oauth2api "google.golang.org/api/oauth2/v2"
+	"google.golang.org/api/option"
 )
 
 type handler struct {
 	Service
 }
 
+var (
+	googleOauthConfig *oauth2.Config
+)
+
 func NewHandler(s Service) Handler {
+	// Scopes: OAuth 2.0 scopes provide a way to limit the amount of access that is granted to an access token.
+	googleOauthConfig = &oauth2.Config{
+		RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
 	return &handler{
 		s,
 	}
@@ -168,4 +192,146 @@ func (h *handler) UpdateAuth(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, res)
+}
+
+func (h *handler) AuthGoogleLogin(c *gin.Context) {
+	oauthState := generateStateOauthCookie()
+	u := googleOauthConfig.AuthCodeURL(oauthState, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+	c.SetCookie("oauthstate", oauthState, 3600, "", "", false, true)
+	c.JSON(http.StatusOK, gin.H{
+		"authUrl": u,
+		"state":   oauthState,
+	})
+}
+
+func (h *handler) AuthGoogleCallback(c *gin.Context) {
+	state := c.DefaultQuery("state", "")
+	if state == "" {
+		log.Println("invalid oauth state")
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Invalid oauth state",
+		})
+		return
+	}
+
+	code := c.DefaultQuery("code", "")
+	token, err := googleOauthConfig.Exchange(context.Background(), code)
+	if err != nil {
+		log.Printf("could not get token: %v\n", err)
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Could not get token",
+		})
+		return
+	}
+
+	client := googleOauthConfig.TokenSource(context.Background(), token)
+	oauth2Service, err := oauth2api.NewService(context.Background(), option.WithTokenSource(client))
+
+	if err != nil {
+		log.Printf("could not create oauth2 service: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Invalid oauth service",
+		})
+		return
+	}
+
+	userinfo, err := oauth2Service.Userinfo.Get().Do()
+	if err != nil || userinfo == nil {
+		log.Printf("could not get user info: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed get user info",
+		})
+		return
+	}
+
+	user, err := h.Service.AuthGoogleCallback(c, userinfo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintln(err.Error()),
+		})
+		return
+	}
+	jwt, err := utils.GenerateJWT(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "error generate token",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user":         user,
+		"access_token": jwt,
+	})
+
+}
+
+func (h *handler) AuthGoogleVerify(c *gin.Context) {
+	state := c.DefaultQuery("state", "")
+	if state == "" {
+		log.Println("invalid oauth state")
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Invalid oauth state",
+		})
+		return
+	}
+
+	code := c.DefaultQuery("code", "")
+	token, err := googleOauthConfig.Exchange(context.Background(), code)
+	if err != nil {
+		log.Printf("could not get token: %v\n", err)
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Could not get token",
+		})
+		return
+	}
+
+	client := googleOauthConfig.TokenSource(context.Background(), token)
+	oauth2Service, err := oauth2api.NewService(context.Background(), option.WithTokenSource(client))
+
+	if err != nil {
+		log.Printf("could not create oauth2 service: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Invalid oauth service",
+		})
+		return
+	}
+
+	userinfo, err := oauth2Service.Userinfo.Get().Do()
+	if err != nil || userinfo == nil {
+		log.Printf("could not get user info: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed get user info",
+		})
+		return
+	}
+
+	user, err := h.Service.AuthGoogleCallback(c, userinfo)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintln(err.Error()),
+		})
+		return
+	}
+	jwt, err := utils.GenerateJWT(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "error generate token",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user":         user,
+		"access_token": jwt,
+	})
+
+}
+
+func generateStateOauthCookie() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	state := base64.URLEncoding.EncodeToString(b)
+
+	return state
 }
