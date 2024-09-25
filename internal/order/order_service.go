@@ -149,7 +149,19 @@ func (s *service) ShowByPublicID(c *gin.Context, public_id string) (*Order, erro
 }
 
 func (s *service) Index(c *gin.Context) ([]*Order, error) {
-	order, err := s.Repository.Index(c)
+	userID, errUserID := s.GetUserIDAuth(c)
+	if errUserID != nil {
+		return nil, errUserID
+	}
+	order, err := s.Repository.Index(c, &userID)
+	if err != nil {
+		return nil, err
+	}
+	return order, nil
+}
+
+func (s *service) IndexAdmin(c *gin.Context) ([]*Order, error) {
+	order, err := s.Repository.Index(c, nil)
 	if err != nil {
 		return nil, err
 	}

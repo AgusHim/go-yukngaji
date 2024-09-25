@@ -48,9 +48,14 @@ func (r *repository) ShowByPublicID(c *gin.Context, public_id string, user_id *s
 	return order, nil
 }
 
-func (r *repository) Index(c *gin.Context) ([]*Order, error) {
+func (r *repository) Index(c *gin.Context, user_id *string) ([]*Order, error) {
 	var order []*Order
-	err := r.db.Preload("Event").Preload("PaymentMethod").Find(&order).Error
+	tx := r.db
+	query := tx.Model(&Event{})
+	if user_id != nil && *user_id != "" {
+		query.Where("user_id = ?", user_id)
+	}
+	err := query.Preload("Event").Preload("PaymentMethod").Order("created_at DESC").Find(&order).Error
 	if err != nil {
 		return nil, err
 	}

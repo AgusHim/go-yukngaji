@@ -72,7 +72,7 @@ type Repository interface {
 	Create(ctx *gin.Context, order *Order) (*Order, error)
 	Show(ctx *gin.Context, id string) (*Order, error)
 	ShowByPublicID(ctx *gin.Context, public_id string, user_id *string) (*Order, error)
-	Index(ctx *gin.Context) ([]*Order, error)
+	Index(ctx *gin.Context, user_id *string) ([]*Order, error)
 	Update(ctx *gin.Context, order *Order) (*Order, error)
 }
 
@@ -81,6 +81,7 @@ type Service interface {
 	Show(ctx *gin.Context, id string) (*Order, error)
 	ShowByPublicID(ctx *gin.Context, public_id string) (*Order, error)
 	Index(ctx *gin.Context) ([]*Order, error)
+	IndexAdmin(ctx *gin.Context) ([]*Order, error)
 	VerifyOrder(ctx *gin.Context, id string, status string) (*Order, error)
 }
 
@@ -89,5 +90,6 @@ type Handler interface {
 	ShowByPublicID(ctx *gin.Context)
 	Show(ctx *gin.Context)
 	Index(ctx *gin.Context)
+	IndexAdmin(ctx *gin.Context)
 	VerifyOrder(ctx *gin.Context)
 }
