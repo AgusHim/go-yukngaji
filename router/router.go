@@ -42,7 +42,7 @@ func InitRouter(
 	rangerPresenceHandler ranger_presence.Handler,
 	orderHandler order.Handler,
 	ticketHandler ticket.Handler,
-	userTicketPresenceHandler user_ticket.Handler,
+	userTicketHandler user_ticket.Handler,
 	paymentMethodHandler payment_method.Handler,
 	regionHandler region.Handler,
 ) {
@@ -82,7 +82,7 @@ func InitRouter(
 
 	api.POST("/presence", presenceHandler.Create)
 	api.GET("/presence/:slug", presenceHandler.Show)
-	api.GET("/presence", authMiddleware.AuthAdmin, presenceHandler.Index)
+	admin_api.GET("/presence", authMiddleware.AuthAdmin, presenceHandler.Index)
 	user_api.GET("/presence", authMiddleware.AuthUser, presenceHandler.Index)
 
 	api.POST("/comments", commentHandler.Create)
@@ -115,24 +115,33 @@ func InitRouter(
 	ranger_api.GET("/rangers/presence", authMiddleware.AuthRanger, rangerPresenceHandler.Index)
 
 	/* Tickets */
-	api.GET("/tickets", authMiddleware.AuthAdmin, ticketHandler.Index)
-	api.POST("/tickets", authMiddleware.AuthAdmin, ticketHandler.Create)
+	api.GET("/tickets", ticketHandler.Index)
+	admin_api.GET("/tickets", authMiddleware.AuthAdmin, ticketHandler.Index)
+	admin_api.POST("/tickets", authMiddleware.AuthAdmin, ticketHandler.Create)
+	admin_api.PUT("/tickets/:id", authMiddleware.AuthAdmin, ticketHandler.Update)
+	admin_api.DELETE("/tickets/:id", authMiddleware.AuthAdmin, ticketHandler.Delete)
 
 	/* Orders */
-	api.GET("/orders", authMiddleware.AuthUser, orderHandler.Index)
-	api.POST("/orders", authMiddleware.AuthUser, orderHandler.Create)
-	api.GET("/orders/:public_id", orderHandler.ShowByPublicID)
+	user_api.GET("/orders", authMiddleware.AuthUser, orderHandler.Index)
+	user_api.POST("/orders", authMiddleware.AuthUser, orderHandler.Create)
+	user_api.GET("/orders/:public_id", authMiddleware.AuthUser, orderHandler.ShowByPublicID)
 	admin_api.GET("/orders", authMiddleware.AuthAdmin, orderHandler.Index)
-	admin_api.GET("/orders/:public_id", orderHandler.ShowByPublicID)
+	admin_api.GET("/orders/:public_id", authMiddleware.AuthAdmin, orderHandler.ShowByPublicID)
 
 	/* Payment Method */
 	user_api.GET("/payment_methods", authMiddleware.AuthUser, paymentMethodHandler.Index)
 	admin_api.POST("/payment_methods", authMiddleware.AuthAdmin, paymentMethodHandler.Create)
+	admin_api.PUT("/payment_methods/:id", authMiddleware.AuthAdmin, paymentMethodHandler.Update)
+	admin_api.DELETE("/payment_methods/:id", authMiddleware.AuthAdmin, paymentMethodHandler.Delete)
 
 	/* Region */
 	api.GET("/province", regionHandler.Index)
 	api.GET("/district", regionHandler.Index)
 	api.GET("/sub_district", regionHandler.Index)
+
+	/* User Ticket */
+	ranger_api.GET("/user_tickets/:public_id", authMiddleware.AuthRanger, userTicketHandler.ShowByPublicID)
+	ranger_api.GET("/user_tickets/:public_id/presence", authMiddleware.AuthRanger, userTicketHandler.ShowByPublicID)
 
 	r.GET("/ws/events/:id", wsHandler.ConnectWS)
 }

@@ -42,9 +42,14 @@ func (s *service) Create(c *gin.Context, req *CreateTicket) (*Ticket, error) {
 	ticket.StartAt = startAt
 	ticket.EndAt = endAt
 
-	ticket.Visibility = "DRAFT"
+	ticket.Visibility = "draft"
 	if req.Visibility != nil {
-		ticket.Visibility = strings.ToUpper(*req.Visibility)
+		ticket.Visibility = strings.ToLower(*req.Visibility)
+	}
+
+	ticket.GenderAllowed = "both"
+	if req.GenderAllowed != nil {
+		ticket.GenderAllowed = strings.ToLower(*req.GenderAllowed)
 	}
 
 	ticket.CreatedAt = time.Now()
@@ -84,7 +89,10 @@ func (s *service) Update(c *gin.Context, id string, req *CreateTicket) (*Ticket,
 	ticket.EndAt = endAt
 
 	if req.Visibility != nil {
-		ticket.Visibility = strings.ToUpper(*req.Visibility)
+		ticket.Visibility = strings.ToLower(*req.Visibility)
+	}
+	if req.GenderAllowed != nil {
+		ticket.GenderAllowed = strings.ToLower(*req.GenderAllowed)
 	}
 
 	ticket.UpdatedAt = time.Now()
@@ -110,4 +118,21 @@ func (s *service) Index(c *gin.Context) ([]*Ticket, error) {
 		return nil, err
 	}
 	return divisi, nil
+}
+
+func (s *service) Delete(c *gin.Context, id string) error {
+	ticket, err := s.Show(c, id)
+	if err != nil {
+		return err
+	}
+
+	now := time.Now()
+	ticket.UpdatedAt = now
+	ticket.DeletedAt = &now
+
+	_, err = s.Repository.Update(c, ticket.ID, ticket)
+	if err != nil {
+		return err
+	}
+	return nil
 }

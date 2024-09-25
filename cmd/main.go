@@ -54,10 +54,6 @@ func main() {
 	divisiService := divisi.NewService(divisiRepository)
 	divisiHandler := divisi.NewHandler(divisiService)
 
-	presenceRepository := presence.NewRepository(db)
-	presenceService := presence.NewService(presenceRepository, userService, eventService)
-	presenceHandler := presence.NewHandler(presenceService)
-
 	authMiddleware := auth.NewMiddleware(userService)
 
 	commentRepository := comment.NewRepository(db)
@@ -92,17 +88,21 @@ func main() {
 	userTicketService := user_ticket.NewService(userTicketRepository)
 	userTicketHandler := user_ticket.NewHandler(userTicketService)
 
-	orderRepository := order.NewRepository(db)
-	orderService := order.NewService(orderRepository, ticketService, userTicketService)
-	orderHandler := order.NewHandler(orderService)
-
 	paymentMethodRepository := payment_method.NewRepository(db)
 	paymentMethodService := payment_method.NewService(paymentMethodRepository)
 	paymentMethodHandler := payment_method.NewHandler(paymentMethodService)
 
+	orderRepository := order.NewRepository(db)
+	orderService := order.NewService(orderRepository, ticketService, userTicketService, eventService, paymentMethodService)
+	orderHandler := order.NewHandler(orderService)
+
 	regionRepository := region.NewRepository(db)
 	regionService := region.NewService(regionRepository)
 	regionHandler := region.NewHandler(regionService)
+
+	presenceRepository := presence.NewRepository(db)
+	presenceService := presence.NewService(presenceRepository, userService, eventService, userTicketService)
+	presenceHandler := presence.NewHandler(presenceService)
 
 	go hub.Run()
 

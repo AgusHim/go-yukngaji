@@ -19,10 +19,6 @@ type PaymentMethod struct {
 	DeletedAt     *time.Time `json:"-" gorm:"index" binding:"required"`
 }
 
-func (PaymentMethod) TableName() string {
-	return "payment_method"
-}
-
 type CreatePaymentMethod struct {
 	Name          string `json:"name" binding:"required"`
 	Type          string `json:"type" binding:"required"`
@@ -35,16 +31,21 @@ type Repository interface {
 	Create(ctx *gin.Context, PaymentMethod *PaymentMethod) (*PaymentMethod, error)
 	Show(ctx *gin.Context, id string) (*PaymentMethod, error)
 	Index(ctx *gin.Context) ([]*PaymentMethod, error)
+	Update(ctx *gin.Context, id string, PaymentMethod *PaymentMethod) (*PaymentMethod, error)
 }
 
 type Service interface {
 	Create(ctx *gin.Context, req *CreatePaymentMethod) (*PaymentMethod, error)
 	Show(ctx *gin.Context, id string) (*PaymentMethod, error)
 	Index(ctx *gin.Context) ([]*PaymentMethod, error)
+	Update(ctx *gin.Context, id string, req *CreatePaymentMethod) (*PaymentMethod, error)
+	Delete(ctx *gin.Context, id string) error
 }
 
 type Handler interface {
 	Create(ctx *gin.Context)
 	Show(ctx *gin.Context)
 	Index(ctx *gin.Context)
+	Update(ctx *gin.Context)
+	Delete(ctx *gin.Context)
 }

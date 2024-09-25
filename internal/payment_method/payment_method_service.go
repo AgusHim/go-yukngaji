@@ -51,3 +51,39 @@ func (s *service) Index(c *gin.Context) ([]*PaymentMethod, error) {
 	}
 	return divisi, nil
 }
+
+func (s *service) Update(c *gin.Context, id string, req *CreatePaymentMethod) (*PaymentMethod, error) {
+	method, err := s.Show(c, id)
+	if err != nil {
+		return nil, err
+	}
+
+	method.Name = req.Name
+	method.Type = req.Type
+	method.Code = req.Code
+	method.AccountName = req.AccountName
+	method.AccountNumber = req.AccountNumber
+	method.UpdatedAt = time.Now()
+
+	updatedTicket, err := s.Repository.Update(c, method.ID, method)
+	if err != nil {
+		return nil, err
+	}
+	return updatedTicket, nil
+}
+
+func (s *service) Delete(c *gin.Context, id string) error {
+	method, err := s.Repository.Show(c, id)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	method.UpdatedAt = now
+	method.DeletedAt = &now
+
+	_, err = s.Repository.Update(c, method.ID, method)
+	if err != nil {
+		return err
+	}
+	return nil
+}

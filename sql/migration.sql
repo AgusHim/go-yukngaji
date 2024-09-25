@@ -4,8 +4,10 @@ CREATE TABLE "users" (
   "username" varchar DEFAULT ('anonim'),
   "gender" varchar NOT NULL DEFAULT ('male'),
   "age" integer NOT NULL,
+  "birth_date" timestamp,
   "phone" varchar,
   "email" varchar,
+  "instagram" varchar,
   "password" varchar,
   "address" varchar,
   "google_id" varchar,
@@ -56,7 +58,9 @@ CREATE TABLE "events" (
 CREATE TABLE "presence" (
   "id" varchar PRIMARY KEY,
   "event_id" varchar NOT NULL,
-  "user_id" varchar NOT NULL,
+  "user_id" varchar,
+  "user_ticket_id" varchar,
+  "admin_id" varchar,
   "is_new" boolean DEFAULT (true),
   "created_at" timestamp,
   "updated_at" timestamp DEFAULT (now()),
@@ -128,7 +132,7 @@ CREATE TABLE "ranger_presences" (
 
 CREATE TABLE "tickets" (
   "id" varchar PRIMARY KEY,
-  "visibility" varchar DEFAULT ('PUBLIC'),
+  "visibility" varchar DEFAULT ('public'),
   "name" varchar NOT NULL,
   "description" text NOT NULL,
   "price" integer NOT NULL,
@@ -139,6 +143,7 @@ CREATE TABLE "tickets" (
   "min_order_pax" integer,
   "max_order_pax" integer,
   "max_pax" int NOT NULL,
+  "gender_allowed" varchar DEFAULT ('both'),
   "created_at" timestamp DEFAULT (now()),
   "updated_at" timestamp DEFAULT (now()),
   "deleted_at" timestamp
@@ -153,6 +158,7 @@ CREATE TABLE "user_tickets" (
   "user_id" varchar NOT NULL,
   "order_id" varchar NOT NULL,
   "ticket_id" varchar NOT NULL,
+  "event_id" varchar NOT NULL,
   "created_at" timestamp DEFAULT (now()),
   "updated_at" timestamp DEFAULT (now()),
   "deleted_at" timestamp
@@ -162,13 +168,14 @@ CREATE TABLE "orders" (
   "id" varchar PRIMARY KEY,
   "public_id" varchar NOT NULL,
   "user_id" varchar NOT NULL,
-  "payment_method_id" varchar NOT NULL,
+  "payment_method_id" varchar,
+  "event_id" varchar,
   "amount" int NOT NULL,
   "donation" integer DEFAULT (0),
   "admin_fee" integer DEFAULT (0),
-  "status" varchar DEFAULT ('PENDING'),
-  "invoice_url" text NOT NULL,
-  "invoice_image_url" text NOT NULL,
+  "status" varchar DEFAULT ('pending'),
+  "invoice_url" text,
+  "invoice_image_url" text,
   "expired_at" timestamp,
   "created_at" timestamp DEFAULT (now()),
   "updated_at" timestamp DEFAULT (now()),
@@ -181,8 +188,8 @@ CREATE TABLE "payment_methods" (
   "type" varchar NOT NULL,
   "code" varchar NOT NULL,
   "image_url" text NOT NULL,
-  "account_name" int NOT NULL,
-  "account_number" integer DEFAULT (0),
+  "account_name" varchar,
+  "account_number" varchar,
   "created_at" timestamp DEFAULT (now()),
   "updated_at" timestamp DEFAULT (now()),
   "deleted_at" timestamp
@@ -216,5 +223,4 @@ ALTER TABLE "user_tickets" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id
 ALTER TABLE "user_tickets" ADD FOREIGN KEY ("ticket_id") REFERENCES "tickets" ("id");
 
 ALTER TABLE "orders" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
-ALTER TABLE "orders" ADD FOREIGN KEY ("payment_method_id") REFERENCES "payment_method" ("id");
-
+ALTER TABLE "orders" ADD FOREIGN KEY ("payment_method_id") REFERENCES "payment_methods" ("id");

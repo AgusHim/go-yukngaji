@@ -126,7 +126,7 @@ func (s *service) Update(c *gin.Context, id string, req *CreateRanger) (*Ranger,
 		user.Password = req.User.Password
 	}
 
-	_, errUser := s.UserService.UpdateByAdmin(c, ranger.UserID, &user)
+	_, errUser := s.UserService.Update(c, ranger.UserID, &user)
 	if errUser != nil {
 		return nil, errUser
 	}

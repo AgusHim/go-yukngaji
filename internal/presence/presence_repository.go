@@ -45,6 +45,15 @@ func (r *repository) FindByUserID(c *gin.Context, id string, eventID string) (*P
 	return presence, nil
 }
 
+func (r *repository) FindByUserTicketID(c *gin.Context, id string, eventID string) (*Presence, error) {
+	presence := &Presence{}
+	err := r.db.Preload("User").Preload("Event").Where("user_ticket_id = ?", id).Where("event_id = ?", eventID).Where("deleted_at IS NULL").First(&presence).Error
+	if err != nil {
+		return nil, err
+	}
+	return presence, nil
+}
+
 func (r *repository) Index(c *gin.Context) ([]*Presence, error) {
 	var presences []*Presence
 	tx := r.db

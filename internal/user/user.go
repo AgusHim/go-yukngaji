@@ -14,21 +14,23 @@ type User struct {
 	Name            string         `json:"name" binding:"required"`
 	Username        string         `json:"username" binding:"required"`
 	Gender          string         `json:"gender" binding:"required"`
+	BirthDate       time.Time      `json:"birth_date" gorm:"-"`
 	Age             int            `json:"age" binding:"required"`
 	Phone           string         `json:"phone" binding:"required"`
 	Email           *string        `json:"email" binding:"required"`
+	Instagram       string         `json:"instagram"`
 	Address         string         `json:"address" binding:"required"`
 	Password        *string        `json:"-" binding:"required"`
 	Role            string         `json:"role"`
 	Activity        *string        `json:"activity"`
 	GoogleID        *string        `json:"-" gorm:"google_id"`
 	ImageUrl        *string        `json:"image_url"`
-	ProvinceCode    string         `json:"-" gorm:"province_code;size:2"`                                    // Stores the first 2 digits of the ID
-	DistrictCode    string         `json:"-" gorm:"district_code;size:5"`                                    // Stores the first 5 digits of the ID
-	SubDistrictCode string         `json:"-" gorm:"sub_district_code;size:8"`                                // Stores the first 8 digits of the code
-	Province        *region.Region `json:"province" gorm:"foreignKey:province_code;references:code"`         // Relation to Province
-	District        *region.Region `json:"district" gorm:"foreignKey:district_code;references:code"`         // Relation to District
-	SubDistrict     *region.Region `json:"sub_district" gorm:"foreignKey:sub_district_code;references:code"` // Relation to Sub-district
+	ProvinceCode    *string        `json:"-" gorm:"province_code;size:2"`                                    // Stores the first 2 digits of the ID
+	DistrictCode    *string        `json:"-" gorm:"district_code;size:5"`                                    // Stores the first 5 digits of the ID
+	SubDistrictCode *string        `json:"-" gorm:"sub_district_code;size:8"`                                // Stores the first 8 digits of the code
+	Province        *region.Region `json:"province" gorm:"foreignKey:province_code;references:kode"`         // Relation to Province
+	District        *region.Region `json:"district" gorm:"foreignKey:district_code;references:kode"`         // Relation to District
+	SubDistrict     *region.Region `json:"sub_district" gorm:"foreignKey:sub_district_code;references:kode"` // Relation to Sub-district
 	CreatedAt       time.Time      `json:"created_at" `
 	UpdatedAt       time.Time      `json:"-" `
 	DeletedAt       *time.Time     `json:"-" `
@@ -40,15 +42,20 @@ type Login struct {
 }
 
 type CreateUser struct {
-	Name     string  `json:"name" binding:"required"`
-	Gender   string  `json:"gender"`
-	Age      string  `json:"age"`
-	Phone    string  `json:"phone"`
-	Email    *string `json:"email"`
-	Username string  `json:"username"`
-	Address  string  `json:"address"`
-	Password *string `json:"password"`
-	Activity string  `json:"activity" binding:"required"`
+	Name            string  `json:"name" binding:"required"`
+	Gender          string  `json:"gender"`
+	Age             string  `json:"age"`
+	BirthDate       *string `json:"birth_date"`
+	Phone           string  `json:"phone"`
+	Email           *string `json:"email"`
+	Instagram       *string `json:"instagram"`
+	Username        string  `json:"username"`
+	Address         string  `json:"address"`
+	Password        *string `json:"password"`
+	Activity        string  `json:"activity" binding:"required"`
+	ProvinceCode    *string `json:"province_code"`
+	DistrictCode    *string `json:"district_code"`
+	SubDistrictCode *string `json:"sub_district_code"`
 }
 
 func CreateUserToUser(u CreateUser) (res *User, err error) {
@@ -75,7 +82,7 @@ type Repository interface {
 	GetUserByEmail(c *gin.Context, email string) (*User, error)
 	DeleteByID(c *gin.Context, id string) error
 	Show(c *gin.Context, id string) (*User, error)
-	UpdateByAdmin(c *gin.Context, id string, user *User) (*User, error)
+	Update(c *gin.Context, id string, user *User) (*User, error)
 	ShowByGoogleID(c *gin.Context, id string) (*User, error)
 }
 
@@ -87,7 +94,7 @@ type Service interface {
 	Presence(c *gin.Context, user *CreateUser) (*User, error)
 	DeleteByID(c *gin.Context, id string) error
 	CreateRanger(c *gin.Context, user *CreateUser) (*User, error)
-	UpdateByAdmin(c *gin.Context, id string, user *CreateUser) (*User, error)
+	Update(c *gin.Context, id string, user *CreateUser) (*User, error)
 	AuthGoogleCallback(c *gin.Context, userInfo *oauth2api.Userinfo) (*User, error)
 }
 

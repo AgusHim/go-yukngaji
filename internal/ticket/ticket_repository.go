@@ -24,7 +24,7 @@ func (r *repository) Create(c *gin.Context, ticket *Ticket) (*Ticket, error) {
 }
 
 func (r *repository) Update(c *gin.Context, id string, ticket *Ticket) (*Ticket, error) {
-	err := r.db.Create(ticket).Error
+	err := r.db.Save(&ticket).Error
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (r *repository) Update(c *gin.Context, id string, ticket *Ticket) (*Ticket,
 
 func (r *repository) Show(c *gin.Context, id string) (*Ticket, error) {
 	ticket := &Ticket{}
-	err := r.db.Where("id = ?", id).First(&ticket).Error
+	err := r.db.Where("id = ?", id).Where("deleted_at IS NULL").First(&ticket).Error
 	if err != nil {
 		return nil, err
 	}
@@ -54,4 +54,13 @@ func (r *repository) Index(c *gin.Context) ([]*Ticket, error) {
 		return nil, err
 	}
 	return tickets, nil
+}
+
+func (r *repository) Delete(c *gin.Context, id string) error {
+	ticket := &Ticket{}
+	err := r.db.Where("id = ?", id).Delete(&ticket).Error
+	if err != nil {
+		return err
+	}
+	return nil
 }

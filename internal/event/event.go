@@ -22,10 +22,10 @@ type Event struct {
 	EndAt            time.Time      `json:"end_at" binding:"required"`
 	CloseAt          *time.Time     `json:"close_at"`
 	Participant      int            `json:"participant"`
-	IsPublished      bool           `json:"isPublished"`
-	IsWhitelistOnly  bool           `json:"isWhitelistOnly"`
+	IsPublished      bool           `json:"isPublished" gorm:"column:isPublished"`
+	IsWhitelistOnly  bool           `json:"isWhitelistOnly" gorm:"column:isWhitelistOnly"`
 	AllowedGender    string         `json:"allowed_gender" binding:"required"`
-	IsAllowedToOrder bool           `json:"isAllowedToOrder"`
+	IsAllowedToOrder bool           `json:"isAllowedToOrder" gorm:"column:isAllowedToOrder"`
 	LocationTypes    pq.StringArray `json:"location_types" gorm:"type:text[]"`
 	LocationDesc     pq.StringArray `json:"location_desc" gorm:"type:text[]"`
 	CreatedAt        time.Time      `json:"created_at"`

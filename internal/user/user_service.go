@@ -183,7 +183,7 @@ func (s *service) CreateRanger(c *gin.Context, req *CreateUser) (*User, error) {
 	return user, nil
 }
 
-func (s *service) UpdateByAdmin(c *gin.Context, id string, u *CreateUser) (*User, error) {
+func (s *service) Update(c *gin.Context, id string, u *CreateUser) (*User, error) {
 	// Check User in Database
 	user, err := s.Repository.Show(c, id)
 	if err != nil {
@@ -201,9 +201,17 @@ func (s *service) UpdateByAdmin(c *gin.Context, id string, u *CreateUser) (*User
 	user.Phone = u.Phone
 	user.Username = u.Username
 	user.Address = u.Address
+	user.ProvinceCode = u.ProvinceCode
+	user.DistrictCode = u.DistrictCode
+	user.SubDistrictCode = u.SubDistrictCode
 	user.Activity = &u.Activity
-	if u.Email != nil {
-		user.Email = u.Email
+
+	// if u.Email != nil {
+	// 	user.Email = u.Email
+	// }
+
+	if u.Instagram != nil {
+		user.Instagram = *u.Instagram
 	}
 
 	if u.Password != nil && *u.Password != "" {
@@ -214,9 +222,22 @@ func (s *service) UpdateByAdmin(c *gin.Context, id string, u *CreateUser) (*User
 		user.Password = &hash
 	}
 
+	if u.BirthDate != nil && *u.BirthDate != "" {
+		birthDate, errParsed := time.Parse("2006-01-02T15:04", *u.BirthDate)
+		if errParsed != nil {
+			return nil, errParsed
+		}
+		user.BirthDate = birthDate
+	}
+
 	user.UpdatedAt = time.Now()
 
-	user, err = s.Repository.UpdateByAdmin(c, id, user)
+	_, err = s.Repository.Update(c, id, user)
+	if err != nil {
+		return nil, err
+	}
+
+	user, err = s.Repository.Show(c, id)
 	if err != nil {
 		return nil, err
 	}

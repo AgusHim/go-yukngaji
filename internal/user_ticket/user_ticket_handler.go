@@ -56,9 +56,9 @@ func (h *handler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-func (h *handler) Show(c *gin.Context) {
-	id := c.Param("id")
-	res, err := h.Service.Show(c, id)
+func (h *handler) ShowByPublicID(c *gin.Context) {
+	id := c.Param("public_id")
+	res, err := h.Service.ShowByPublicID(c, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),

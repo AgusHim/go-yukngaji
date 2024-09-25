@@ -25,7 +25,7 @@ func (r *repository) Create(c *gin.Context, method *PaymentMethod) (*PaymentMeth
 
 func (r *repository) Show(c *gin.Context, id string) (*PaymentMethod, error) {
 	method := &PaymentMethod{}
-	err := r.db.Where("id = ?", id).First(&method).Error
+	err := r.db.Where("id = ?", id).Where("deleted_at IS NULL").First(&method).Error
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,15 @@ func (r *repository) Show(c *gin.Context, id string) (*PaymentMethod, error) {
 
 func (r *repository) Index(c *gin.Context) ([]*PaymentMethod, error) {
 	var method []*PaymentMethod
-	err := r.db.Find(&method).Error
+	err := r.db.Where("deleted_at IS NULL").Find(&method).Error
+	if err != nil {
+		return nil, err
+	}
+	return method, nil
+}
+
+func (r *repository) Update(c *gin.Context, id string, method *PaymentMethod) (*PaymentMethod, error) {
+	err := r.db.Save(&method).Error
 	if err != nil {
 		return nil, err
 	}

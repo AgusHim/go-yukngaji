@@ -119,7 +119,7 @@ func (h *handler) UpdateByAdmin(c *gin.Context) {
 		return
 	}
 
-	res, err := h.Service.UpdateByAdmin(c, id, &u)
+	res, err := h.Service.Update(c, id, &u)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),
@@ -184,7 +184,7 @@ func (h *handler) UpdateAuth(c *gin.Context) {
 		return
 	}
 
-	res, err := h.Service.UpdateByAdmin(c, currentUser.ID, &u)
+	res, err := h.Service.Update(c, currentUser.ID, &u)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),

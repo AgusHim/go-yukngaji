@@ -1,6 +1,8 @@
 package user_ticket
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"strings"
 	"time"
 
@@ -22,13 +24,19 @@ func NewService(repository Repository) Service {
 func (s *service) Create(c *gin.Context, req *CreateUserTicket) (*UserTicket, error) {
 	userTicket := &UserTicket{}
 	userTicket.ID = uuid.NewString()
-	userTicket.PublicID = strings.ToUpper(uuid.NewString()[:8])
+
+	publicID, errPublicID := generateShortID()
+	if errPublicID != nil {
+		return nil, errPublicID
+	}
+	userTicket.PublicID = strings.ToUpper(publicID)
 	userTicket.UserName = req.UserName
 	userTicket.UserEmail = req.UserEmail
 	userTicket.UserGender = req.UserGender
 	userTicket.UserID = req.UserID
 	userTicket.OrderID = req.OrderID
 	userTicket.TicketID = req.TicketID
+	userTicket.EventID = req.EventID
 
 	userTicket.CreatedAt = time.Now()
 	userTicket.UpdatedAt = time.Now()
@@ -61,17 +69,45 @@ func (s *service) Update(c *gin.Context, id string, req *CreateUserTicket) (*Use
 }
 
 func (s *service) Show(c *gin.Context, id string) (*UserTicket, error) {
-	divisi, err := s.Repository.Show(c, id)
+	ticket, err := s.Repository.Show(c, id)
 	if err != nil {
 		return nil, err
 	}
-	return divisi, nil
+	return ticket, nil
+}
+
+func (s *service) ShowByPublicID(c *gin.Context, public_id string) (*UserTicket, error) {
+	ticket, err := s.Repository.Show(c, public_id)
+	if err != nil {
+		return nil, err
+	}
+	return ticket, nil
 }
 
 func (s *service) Index(c *gin.Context) ([]*UserTicket, error) {
-	divisi, err := s.Repository.Index(c)
+	tickets, err := s.Repository.Index(c)
 	if err != nil {
 		return nil, err
 	}
-	return divisi, nil
+	return tickets, nil
+}
+
+func (s *service) IndexByOrderID(c *gin.Context, order_id string) ([]*UserTicket, error) {
+	tickets, err := s.Repository.IndexByOrderID(c, order_id)
+	if err != nil {
+		return nil, err
+	}
+	return tickets, nil
+}
+
+func generateShortID() (string, error) {
+	// Generate 6 random bytes (48 bits)
+	b := make([]byte, 6)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+
+	// Encode to base64
+	return base64.RawURLEncoding.EncodeToString(b), nil
 }

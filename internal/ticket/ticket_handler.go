@@ -20,9 +20,7 @@ func NewHandler(s Service) Handler {
 func (h *handler) Create(c *gin.Context) {
 	var ticket CreateTicket
 	if err := c.ShouldBindJSON(&ticket); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Invalid JSON",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -77,4 +75,18 @@ func (h *handler) Index(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, res)
+}
+
+func (h *handler) Delete(c *gin.Context) {
+	id := c.Param("id")
+	err := h.Service.Delete(c, id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintln(err.Error()),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Success delete ticket",
+	})
 }
