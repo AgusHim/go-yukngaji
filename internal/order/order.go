@@ -26,7 +26,7 @@ type Order struct {
 	PaymentMethod   *payment_method.PaymentMethod `json:"payment_method" gorm:"foreignKey:payment_method_id;references:id"`
 	EventID         string                        `json:"-"`
 	Event           *event.Event                  `json:"event" gorm:"foreignKey:event_id;references:id"`
-	UserTickets     []*user_ticket.UserTicket     `json:"user_tickets" gorm:"-"`
+	UserTickets     []*user_ticket.UserTicket     `json:"user_tickets" gorm:"foreignKey:order_id"`
 	ExpiredAt       *time.Time                    `json:"expired_at"`
 	CreatedAt       time.Time                     `json:"created_at"`
 	UpdatedAt       time.Time                     `json:"-"`

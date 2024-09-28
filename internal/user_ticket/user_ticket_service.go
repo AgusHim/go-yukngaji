@@ -1,8 +1,6 @@
 package user_ticket
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"strings"
 	"time"
 
@@ -25,10 +23,8 @@ func (s *service) Create(c *gin.Context, req *CreateUserTicket) (*UserTicket, er
 	userTicket := &UserTicket{}
 	userTicket.ID = uuid.NewString()
 
-	publicID, errPublicID := generateShortID()
-	if errPublicID != nil {
-		return nil, errPublicID
-	}
+	publicID := strings.Split(uuid.NewString(), "-")[0]
+
 	userTicket.PublicID = strings.ToUpper(publicID)
 	userTicket.UserName = req.UserName
 	userTicket.UserEmail = req.UserEmail
@@ -98,16 +94,4 @@ func (s *service) IndexByOrderID(c *gin.Context, order_id string) ([]*UserTicket
 		return nil, err
 	}
 	return tickets, nil
-}
-
-func generateShortID() (string, error) {
-	// Generate 6 random bytes (48 bits)
-	b := make([]byte, 6)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-
-	// Encode to base64
-	return base64.RawURLEncoding.EncodeToString(b), nil
 }

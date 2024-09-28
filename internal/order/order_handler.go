@@ -71,7 +71,6 @@ func (h *handler) Index(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
-
 func (h *handler) IndexAdmin(c *gin.Context) {
 	res, err := h.Service.IndexAdmin(c)
 	if err != nil {
@@ -84,7 +83,7 @@ func (h *handler) IndexAdmin(c *gin.Context) {
 }
 
 func (h *handler) VerifyOrder(c *gin.Context) {
-	public_id := c.Param("public_id")
+	id := c.Param("id")
 	var order UpdateOrder
 	if err := c.ShouldBindJSON(&order); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -92,7 +91,7 @@ func (h *handler) VerifyOrder(c *gin.Context) {
 		})
 		return
 	}
-	res, err := h.Service.VerifyOrder(c, public_id, order.Status)
+	res, err := h.Service.VerifyOrder(c, id, order.Status)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),

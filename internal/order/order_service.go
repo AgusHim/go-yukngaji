@@ -1,8 +1,6 @@
 package order
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"mainyuk/internal/event"
 	"mainyuk/internal/payment_method"
@@ -53,10 +51,8 @@ func (s *service) Create(c *gin.Context, req *CreateOrder) (*Order, error) {
 	}
 
 	order.ID = uuid.NewString()
-	publicID, err := generateShortID()
-	if err != nil {
-		return nil, err
-	}
+	publicID := strings.Split(uuid.NewString(), "-")[0]
+
 	order.PublicID = strings.ToUpper(publicID)
 
 	userID, errUserID := s.GetUserIDAuth(c)
@@ -180,18 +176,6 @@ func (s *service) GetUserIDAuth(c *gin.Context) (string, error) {
 		return "", errors.New("FailedParsing: current user")
 	}
 	return currentUser.ID, nil
-}
-
-func generateShortID() (string, error) {
-	// Generate 6 random bytes (48 bits)
-	b := make([]byte, 6)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-
-	// Encode to base64
-	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
 func (s *service) VerifyOrder(c *gin.Context, id string, status string) (*Order, error) {

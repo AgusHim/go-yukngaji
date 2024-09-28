@@ -207,7 +207,6 @@ func (h *handler) AuthGoogleLogin(c *gin.Context) {
 func (h *handler) AuthGoogleCallback(c *gin.Context) {
 	state := c.DefaultQuery("state", "")
 	if state == "" {
-		log.Println("invalid oauth state")
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "Invalid oauth state",
 		})
@@ -217,7 +216,6 @@ func (h *handler) AuthGoogleCallback(c *gin.Context) {
 	code := c.DefaultQuery("code", "")
 	token, err := googleOauthConfig.Exchange(context.Background(), code)
 	if err != nil {
-		log.Printf("could not get token: %v\n", err)
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "Could not get token",
 		})

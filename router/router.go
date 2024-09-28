@@ -125,8 +125,9 @@ func InitRouter(
 	user_api.GET("/orders", authMiddleware.AuthUser, orderHandler.Index)
 	user_api.POST("/orders", authMiddleware.AuthUser, orderHandler.Create)
 	user_api.GET("/orders/:public_id", authMiddleware.AuthUser, orderHandler.ShowByPublicID)
-	admin_api.GET("/orders", authMiddleware.AuthAdmin, orderHandler.Index)
+	admin_api.GET("/orders", authMiddleware.AuthAdmin, orderHandler.IndexAdmin)
 	admin_api.GET("/orders/:public_id", authMiddleware.AuthAdmin, orderHandler.ShowByPublicID)
+	admin_api.PUT("/orders/:id/verify", authMiddleware.AuthAdmin, orderHandler.VerifyOrder)
 
 	/* Payment Method */
 	user_api.GET("/payment_methods", authMiddleware.AuthUser, paymentMethodHandler.Index)
