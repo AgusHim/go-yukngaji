@@ -55,11 +55,12 @@ func (s *service) Create(c *gin.Context, req *CreateOrder) (*Order, error) {
 
 	order.PublicID = strings.ToUpper(publicID)
 
-	userID, errUserID := s.GetUserIDAuth(c)
+	user, errUserID := s.GetUserIDAuth(c)
 	if errUserID != nil {
 		return nil, errUserID
 	}
-	order.UserID = userID
+	order.UserID = user.ID
+	order.User = user
 
 	var totalAmount int = 0
 	for _, userTicket := range req.UserTickets {
@@ -128,11 +129,11 @@ func (s *service) Show(c *gin.Context, id string) (*Order, error) {
 }
 
 func (s *service) ShowByPublicID(c *gin.Context, public_id string) (*Order, error) {
-	userID, errUserID := s.GetUserIDAuth(c)
+	user, errUserID := s.GetUserIDAuth(c)
 	if errUserID != nil {
 		return nil, errUserID
 	}
-	order, err := s.Repository.ShowByPublicID(c, public_id, &userID)
+	order, err := s.Repository.ShowByPublicID(c, public_id, &user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -145,11 +146,11 @@ func (s *service) ShowByPublicID(c *gin.Context, public_id string) (*Order, erro
 }
 
 func (s *service) Index(c *gin.Context) ([]*Order, error) {
-	userID, errUserID := s.GetUserIDAuth(c)
+	user, errUserID := s.GetUserIDAuth(c)
 	if errUserID != nil {
 		return nil, errUserID
 	}
-	order, err := s.Repository.Index(c, &userID)
+	order, err := s.Repository.Index(c, &user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -164,18 +165,18 @@ func (s *service) IndexAdmin(c *gin.Context) ([]*Order, error) {
 	return order, nil
 }
 
-func (s *service) GetUserIDAuth(c *gin.Context) (string, error) {
+func (s *service) GetUserIDAuth(c *gin.Context) (*user.User, error) {
 	u, exists := c.Get("currentUser")
 	if !exists {
-		return "", errors.New("not authrized")
+		return nil, errors.New("not authrized")
 	}
 
 	currentUser, ok := u.(user.User)
 
 	if !ok {
-		return "", errors.New("FailedParsing: current user")
+		return nil, errors.New("FailedParsing: current user")
 	}
-	return currentUser.ID, nil
+	return &currentUser, nil
 }
 
 func (s *service) VerifyOrder(c *gin.Context, id string, status string) (*Order, error) {

@@ -81,3 +81,15 @@ func (h *handler) Index(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, res)
 }
+
+func (h *handler) CreateFromTicket(c *gin.Context) {
+	public_id := c.Param("public_id")
+	res, err := h.Service.CreateFromTicket(c, public_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintln(err.Error()),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}

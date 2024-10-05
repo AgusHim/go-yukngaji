@@ -119,9 +119,9 @@ func (s *service) Index(c *gin.Context) ([]*Presence, error) {
 }
 
 // Register implements Service
-func (s *service) CreateFromTicket(c *gin.Context, req *CreatePresence) (*Presence, error) {
+func (s *service) CreateFromTicket(c *gin.Context, public_id string) (*Presence, error) {
 	presence := &Presence{}
-	ticket, errEvent := s.UserTicketService.ShowByPublicID(c, *req.UserTicketID)
+	ticket, errEvent := s.UserTicketService.ShowByPublicID(c, public_id)
 	if errEvent != nil {
 		return nil, errors.New("event not found")
 	}

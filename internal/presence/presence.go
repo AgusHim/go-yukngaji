@@ -44,6 +44,7 @@ type Repository interface {
 
 type Service interface {
 	Create(ctx *gin.Context, req *CreatePresence) (*Presence, error)
+	CreateFromTicket(ctx *gin.Context, public_id string) (*Presence, error)
 	Show(ctx *gin.Context, id string) (*Presence, error)
 	Index(ctx *gin.Context) ([]*Presence, error)
 }
@@ -52,4 +53,5 @@ type Handler interface {
 	Create(ctx *gin.Context)
 	Show(ctx *gin.Context)
 	Index(ctx *gin.Context)
+	CreateFromTicket(ctx *gin.Context)
 }

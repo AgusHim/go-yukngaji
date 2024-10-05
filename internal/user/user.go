@@ -14,7 +14,7 @@ type User struct {
 	Name            string         `json:"name" binding:"required"`
 	Username        string         `json:"username" binding:"required"`
 	Gender          string         `json:"gender" binding:"required"`
-	BirthDate       time.Time      `json:"birth_date" gorm:"-"`
+	BirthDate       time.Time      `json:"birth_date"`
 	Age             int            `json:"age" binding:"required"`
 	Phone           string         `json:"phone" binding:"required"`
 	Email           *string        `json:"email" binding:"required"`

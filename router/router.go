@@ -142,7 +142,7 @@ func InitRouter(
 
 	/* User Ticket */
 	ranger_api.GET("/user_tickets/:public_id", authMiddleware.AuthRanger, userTicketHandler.ShowByPublicID)
-	ranger_api.GET("/user_tickets/:public_id/presence", authMiddleware.AuthRanger, userTicketHandler.ShowByPublicID)
+	ranger_api.GET("/user_tickets/:public_id/presence", authMiddleware.AuthRanger, presenceHandler.CreateFromTicket)
 
 	r.GET("/ws/events/:id", wsHandler.ConnectWS)
 }
