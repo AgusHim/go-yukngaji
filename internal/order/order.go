@@ -74,6 +74,7 @@ type Repository interface {
 	ShowByPublicID(ctx *gin.Context, public_id string, user_id *string) (*Order, error)
 	Index(ctx *gin.Context, user_id *string) ([]*Order, error)
 	Update(ctx *gin.Context, order *Order) (*Order, error)
+	Participants(ctx *gin.Context, event_id string) ([]*Order, error)
 }
 
 type Service interface {
@@ -83,6 +84,7 @@ type Service interface {
 	Index(ctx *gin.Context) ([]*Order, error)
 	IndexAdmin(ctx *gin.Context) ([]*Order, error)
 	VerifyOrder(ctx *gin.Context, id string, status string) (*Order, error)
+	Participants(ctx *gin.Context, event_id string) ([]*Order, error)
 }
 
 type Handler interface {
@@ -92,4 +94,5 @@ type Handler interface {
 	Index(ctx *gin.Context)
 	IndexAdmin(ctx *gin.Context)
 	VerifyOrder(ctx *gin.Context)
+	Participants(ctx *gin.Context)
 }

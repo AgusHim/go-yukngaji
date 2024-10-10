@@ -100,3 +100,15 @@ func (h *handler) VerifyOrder(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, res)
 }
+
+func (h *handler) Participants(c *gin.Context) {
+	event_id := c.Param("event_id")
+	res, err := h.Service.Participants(c, event_id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintln(err.Error()),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}

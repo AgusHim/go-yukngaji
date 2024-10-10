@@ -75,6 +75,7 @@ func InitRouter(
 	api.GET("/events/code/:code", eventHandler.ShowByCode)
 	api.GET("/events", eventHandler.Index)
 	api.PUT("/events/:id", authMiddleware.AuthAdmin, eventHandler.Create)
+	admin_api.GET("/events/:event_id/participants", authMiddleware.AuthAdmin, orderHandler.Participants)
 
 	admin_api.POST("/divisi", authMiddleware.AuthPJ, divisiHandler.Create)
 	admin_api.GET("/divisi/:slug", authMiddleware.AuthPJ, divisiHandler.Show)

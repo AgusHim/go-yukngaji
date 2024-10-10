@@ -69,3 +69,15 @@ func (r *repository) Update(c *gin.Context, order *Order) (*Order, error) {
 	}
 	return order, nil
 }
+
+func (r *repository) Participants(c *gin.Context, event_id string) ([]*Order, error) {
+	var order []*Order
+	tx := r.db
+	query := tx.Model(&Order{})
+
+	err := query.Preload("UserTickets").Preload("User").Preload("Event").Preload("PaymentMethod").Where("status = ?", "paid").Order("created_at DESC").Find(&order).Error
+	if err != nil {
+		return nil, err
+	}
+	return order, nil
+}

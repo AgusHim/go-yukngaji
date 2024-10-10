@@ -193,3 +193,11 @@ func (s *service) VerifyOrder(c *gin.Context, id string, status string) (*Order,
 	}
 	return order, nil
 }
+
+func (s *service) Participants(c *gin.Context, event_id string) ([]*Order, error) {
+	order, err := s.Repository.Participants(c, event_id)
+	if err != nil {
+		return nil, err
+	}
+	return order, nil
+}
