@@ -83,8 +83,16 @@ func (h *handler) Index(c *gin.Context) {
 }
 
 func (h *handler) CreateFromTicket(c *gin.Context) {
-	public_id := c.Param("public_id")
-	res, err := h.Service.CreateFromTicket(c, public_id)
+	slug := c.Param("slug")
+	var ticket PresenceFromTicket
+	if err := c.ShouldBindJSON(&ticket); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Invalid JSON",
+		})
+		return
+
+	}
+	res, err := h.Service.CreateFromTicket(c, slug, ticket.PublicID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": fmt.Sprintln(err.Error()),

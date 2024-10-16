@@ -73,7 +73,7 @@ func (s *service) Show(c *gin.Context, id string) (*UserTicket, error) {
 }
 
 func (s *service) ShowByPublicID(c *gin.Context, public_id string) (*UserTicket, error) {
-	ticket, err := s.Repository.Show(c, public_id)
+	ticket, err := s.Repository.ShowByPublicID(c, public_id)
 	if err != nil {
 		return nil, err
 	}

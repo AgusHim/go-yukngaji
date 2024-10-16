@@ -85,6 +85,7 @@ func InitRouter(
 	api.GET("/presence/:slug", presenceHandler.Show)
 	admin_api.GET("/presence", authMiddleware.AuthAdmin, presenceHandler.Index)
 	user_api.GET("/presence", authMiddleware.AuthUser, presenceHandler.Index)
+	ranger_api.POST("/event/:slug/presence", authMiddleware.AuthRanger, presenceHandler.CreateFromTicket)
 
 	api.POST("/comments", commentHandler.Create)
 	api.GET("/comments", commentHandler.Index)
@@ -143,7 +144,6 @@ func InitRouter(
 
 	/* User Ticket */
 	ranger_api.GET("/user_tickets/:public_id", authMiddleware.AuthRanger, userTicketHandler.ShowByPublicID)
-	ranger_api.GET("/user_tickets/:public_id/presence", authMiddleware.AuthRanger, presenceHandler.CreateFromTicket)
 
 	r.GET("/ws/events/:id", wsHandler.ConnectWS)
 }

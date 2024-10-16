@@ -15,7 +15,7 @@ type User struct {
 	Username        string         `json:"username" binding:"required"`
 	Gender          string         `json:"gender" binding:"required"`
 	BirthDate       time.Time      `json:"birth_date"`
-	Age             int            `json:"age" binding:"required"`
+	Age             int            `json:"age" gorm:"default:0"`
 	Phone           string         `json:"phone" binding:"required"`
 	Email           *string        `json:"email" binding:"required"`
 	Instagram       string         `json:"instagram"`
@@ -62,11 +62,11 @@ func CreateUserToUser(u CreateUser) (res *User, err error) {
 	user := User{}
 	user.Name = u.Name
 	user.Gender = u.Gender
-
-	user.Age, err = strconv.Atoi(u.Age)
+	age, err := strconv.Atoi(u.Age)
 	if err != nil {
 		return nil, err
 	}
+	user.Age = age
 
 	user.Phone = u.Phone
 	user.Username = u.Username

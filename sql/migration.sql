@@ -3,7 +3,7 @@ CREATE TABLE "users" (
   "name" varchar NOT NULL,
   "username" varchar DEFAULT ('anonim'),
   "gender" varchar NOT NULL DEFAULT ('male'),
-  "age" integer NOT NULL,
+  "age" integer,
   "birth_date" timestamp,
   "phone" varchar,
   "email" varchar,

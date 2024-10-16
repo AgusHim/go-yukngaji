@@ -42,7 +42,7 @@ func (r *repository) Show(c *gin.Context, id string) (*UserTicket, error) {
 
 func (r *repository) ShowByPublicID(c *gin.Context, id string) (*UserTicket, error) {
 	userTicket := &UserTicket{}
-	err := r.db.Preload("Ticket").Preload("Event").Preload("User").Where("id = ?", id).First(&userTicket).Error
+	err := r.db.Preload("Ticket").Preload("Event").Preload("User").Where("public_id = ?", id).First(&userTicket).Error
 	if err != nil {
 		return nil, err
 	}

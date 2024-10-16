@@ -174,7 +174,7 @@ func (m *middleware) AuthRanger(c *gin.Context) {
 		})
 		return
 	}
-	if user.Role != "ranger" && user.Role != "pj" {
+	if user.Role != "ranger" && user.Role != "pj" && user.Role != "admin" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 			"error": "Unauthorize role",
 		})

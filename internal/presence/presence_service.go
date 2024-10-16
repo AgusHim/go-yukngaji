@@ -2,6 +2,7 @@ package presence
 
 import (
 	"errors"
+	"fmt"
 	"mainyuk/internal/event"
 	"mainyuk/internal/user"
 	"mainyuk/internal/user_ticket"
@@ -119,68 +120,98 @@ func (s *service) Index(c *gin.Context) ([]*Presence, error) {
 }
 
 // Register implements Service
-func (s *service) CreateFromTicket(c *gin.Context, public_id string) (*Presence, error) {
-	presence := &Presence{}
-	ticket, errEvent := s.UserTicketService.ShowByPublicID(c, public_id)
+func (s *service) CreateFromTicket(c *gin.Context, slug string, public_id string) (*ResScanTicket, error) {
+
+	event, errEvent := s.EventService.Show(c, slug)
 	if errEvent != nil {
 		return nil, errors.New("event not found")
 	}
 
+	ticket, errTicket := s.UserTicketService.ShowByPublicID(c, public_id)
+	if errTicket != nil {
+		return nil, errors.New("ticket not found")
+	}
+
+	// check event id = ticket.event.id
+	if ticket.EventID != event.ID {
+		return nil, errors.New("ticket is not for this event")
+	}
+
 	if ticket != nil {
-		presence, _ := s.PresenceRepository.FindByUserID(c, ticket.ID, ticket.Event.ID)
-		if presence != nil {
-			createdAt := presence.CreatedAt
+		p, _ := s.PresenceRepository.FindByUserTicketID(c, ticket.ID, ticket.Event.ID)
+		if p != nil {
+			createdAt := p.CreatedAt
 			now := time.Now()
 
 			isToday := createdAt.Year() == now.Year() &&
 				createdAt.Month() == now.Month() &&
 				createdAt.Day() == now.Day()
 			if isToday {
-				return presence, nil
+				res := &ResScanTicket{}
+				res.UserTicket = *ticket
+				tp, err := s.PresenceRepository.IndexByUserTicket(c, ticket.ID)
+				if err != nil {
+					return nil, errors.New("presence not found")
+				}
+				res.Presences = presenceToPresences(tp)
+				return res, nil
 			}
 		}
+		presence := &Presence{}
+		userTicketID := ticket.ID
+		presence.UserTicketID = &userTicketID
+		presence.UserTicket = *ticket
+		presence.ID = uuid.NewString()
+
+		presence.EventID = ticket.EventID
+		presence.Event = event
+
+		u, errUser := s.UserService.Show(c, ticket.UserID)
+		if errUser != nil {
+			return nil, errors.New("UserNotFound")
+		}
+		fmt.Println("User", u)
+		presence.UserID = u.ID
+		presence.User = u
+
+		// Admin verificator
+		adminID, errAdminID := s.GetUserIDAuth(c)
+		if errAdminID != nil {
+			return nil, errAdminID
+		}
+
+		presence.AdminID = &adminID
+		presence.CreatedAt = time.Now()
+		presence.UpdatedAt = time.Now()
+		fmt.Println("Presence", presence)
+		_, err := s.PresenceRepository.Create(c, presence)
+		if err != nil {
+			return nil, err
+		}
+		// ++ participant from event
+		event.Participant = event.Participant + 1
+		_, errUpdateEvent := s.EventService.Update(c, event.ID, event)
+		if errUpdateEvent != nil {
+			return nil, err
+		}
+		res := &ResScanTicket{}
+		res.UserTicket = *ticket
+		tp, err := s.PresenceRepository.IndexByUserTicket(c, ticket.ID)
+		if err != nil {
+			return nil, errors.New("presence not found")
+		}
+		res.Presences = presenceToPresences(tp)
+		return res, nil
+	} else {
+		return nil, errors.New("ticket not found")
 	}
+}
 
-	presence.UserTicketID = &ticket.ID
-	presence.UserTicket = *ticket
-	presence.ID = uuid.NewString()
-
-	event, errEvent := s.EventService.Show(c, ticket.EventID)
-	if errEvent != nil {
-		return nil, errors.New("event not found")
-	}
-	presence.EventID = ticket.EventID
-	presence.Event = event
-
-	u, errUser := s.UserService.Show(c, ticket.UserID)
-	if errUser != nil {
-		return nil, errors.New("UserNotFound")
-	}
-
-	presence.UserID = u.ID
-	presence.User = u
-
-	// Admin verificator
-	adminID, errAdminID := s.GetUserIDAuth(c)
-	if errAdminID != nil {
-		return nil, errAdminID
-	}
-
-	presence.AdminID = &adminID
-	presence.CreatedAt = time.Now()
-	presence.UpdatedAt = time.Now()
-
-	presence, err := s.PresenceRepository.Create(c, presence)
+func (s *service) IndexByUserTicket(c *gin.Context, ut_id string) ([]*Presence, error) {
+	presence, err := s.PresenceRepository.IndexByUserTicket(c, ut_id)
 	if err != nil {
 		return nil, err
 	}
-	// ++ participant from event
-	event.Participant = event.Participant + 1
-	_, errUpdateEvent := s.EventService.Update(c, event.ID, event)
-	if errUpdateEvent != nil {
-		return nil, err
-	}
-
 	return presence, nil
 }
 

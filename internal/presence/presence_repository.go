@@ -20,7 +20,7 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *repository) Create(c *gin.Context, presence *Presence) (*Presence, error) {
-	err := r.db.Preload("User").Preload("Event").Create(presence).Error
+	err := r.db.Preload("User").Preload("Event").Create(&presence).Error
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,20 @@ func (r *repository) Index(c *gin.Context) ([]*Presence, error) {
 		query.Where("user_id = ?", currentUser.ID)
 	}
 
-	err := query.Preload("User").Preload("Event").Where("deleted_at IS NULL").Find(&presences).Error
+	err := query.Preload("User").Preload("Event").Preload("UserTicket").Preload("UserTicket.Ticket").Where("deleted_at IS NULL").Find(&presences).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return presences, nil
+}
+
+func (r *repository) IndexByUserTicket(c *gin.Context, user_ticket_id string) ([]*Presence, error) {
+	var presences []*Presence
+	tx := r.db
+	query := tx.Model(&presences)
+	query.Where("user_ticket_id = ?", user_ticket_id)
+	err := query.Preload("User").Preload("Event").Preload("UserTicket").Preload("UserTicket.Ticket").Where("deleted_at IS NULL").Find(&presences).Error
 	if err != nil {
 		return nil, err
 	}

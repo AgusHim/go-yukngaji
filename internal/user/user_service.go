@@ -193,10 +193,11 @@ func (s *service) Update(c *gin.Context, id string, u *CreateUser) (*User, error
 	user.Name = u.Name
 	user.Gender = u.Gender
 
-	user.Age, err = strconv.Atoi(u.Age)
+	age, err := strconv.Atoi(u.Age)
 	if err != nil {
 		return nil, err
 	}
+	user.Age = age
 
 	user.Phone = u.Phone
 	user.Username = u.Username
@@ -261,7 +262,8 @@ func (s *service) AuthGoogleCallback(c *gin.Context, userInfo *oauth2api.Userinf
 	user.Username = "anonim"
 	user.Gender = strings.ToLower(userInfo.Gender)
 
-	user.Age = 0
+	age := 0
+	user.Age = age
 	user.Phone = ""
 	user.Email = &userInfo.Email
 	user.Address = ""
