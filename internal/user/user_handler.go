@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"mainyuk/utils"
@@ -24,6 +25,11 @@ type handler struct {
 var (
 	googleOauthConfig *oauth2.Config
 )
+
+type customState struct {
+	CSRFToken  string `json:"csrf_token"`
+	RedirectTo string `json:"redirectTo"`
+}
 
 func NewHandler(s Service) Handler {
 	// Scopes: OAuth 2.0 scopes provide a way to limit the amount of access that is granted to an access token.
@@ -195,7 +201,9 @@ func (h *handler) UpdateAuth(c *gin.Context) {
 }
 
 func (h *handler) AuthGoogleLogin(c *gin.Context) {
-	oauthState := generateStateOauthCookie()
+	redirectTo := c.DefaultQuery("redirectTo", "/events")
+	oauthState := generateStateOauthCookie(redirectTo)
+
 	u := googleOauthConfig.AuthCodeURL(oauthState, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 	c.SetCookie("oauthstate", oauthState, 3600, "", "", false, true)
 	c.JSON(http.StatusOK, gin.H{
@@ -205,10 +213,19 @@ func (h *handler) AuthGoogleLogin(c *gin.Context) {
 }
 
 func (h *handler) AuthGoogleCallback(c *gin.Context) {
-	state := c.DefaultQuery("state", "")
-	if state == "" {
+	stateQuery := c.DefaultQuery("state", "")
+	if stateQuery == "" {
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "Invalid oauth state",
+		})
+		return
+	}
+	stateDecoded, _ := base64.StdEncoding.DecodeString(stateQuery)
+
+	var state customState
+	if err := json.Unmarshal(stateDecoded, &state); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Error json unmarshal state",
 		})
 		return
 	}
@@ -260,6 +277,7 @@ func (h *handler) AuthGoogleCallback(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user":         user,
 		"access_token": jwt,
+		"redirectTo":   state.RedirectTo,
 	})
 
 }
@@ -326,10 +344,14 @@ func (h *handler) AuthGoogleVerify(c *gin.Context) {
 
 }
 
-func generateStateOauthCookie() string {
+func generateStateOauthCookie(redirectTo string) string {
 	b := make([]byte, 16)
 	rand.Read(b)
-	state := base64.URLEncoding.EncodeToString(b)
-
-	return state
+	state := customState{
+		CSRFToken:  base64.URLEncoding.EncodeToString(b), // Replace with a generated token for security
+		RedirectTo: redirectTo,
+	}
+	stateJSON, _ := json.Marshal(state)
+	encodedState := base64.StdEncoding.EncodeToString(stateJSON)
+	return encodedState
 }
