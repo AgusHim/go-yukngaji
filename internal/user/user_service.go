@@ -253,6 +253,13 @@ func (s *service) AuthGoogleCallback(c *gin.Context, userInfo *oauth2api.Userinf
 		return u, nil
 	}
 
+	u, _ = s.Repository.GetUserByEmail(c, userInfo.Email)
+	if u != nil {
+		u.GoogleID = &userInfo.Id
+		u.UpdatedAt = time.Now()
+		s.Repository.Update(c, u.ID, u)
+		return u, nil
+	}
 	// Registered new user
 	user := &User{}
 	user.ID = uuid.NewString()

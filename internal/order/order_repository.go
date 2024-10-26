@@ -55,7 +55,7 @@ func (r *repository) Index(c *gin.Context, user_id *string) ([]*Order, error) {
 	if user_id != nil && *user_id != "" {
 		query.Where("user_id = ?", user_id)
 	}
-	err := query.Preload("PaymentMethod").Preload("UserTickets").Preload("User").Preload("Event").Preload("PaymentMethod").Order("created_at DESC").Find(&order).Error
+	err := query.Preload("PaymentMethod").Preload("UserTickets").Preload("User").Preload("User.Province").Preload("User.District").Preload("User.SubDistrict").Preload("Event").Preload("PaymentMethod").Order("created_at DESC").Find(&order).Error
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +74,10 @@ func (r *repository) Participants(c *gin.Context, event_id string) ([]*Order, er
 	var order []*Order
 	tx := r.db
 	query := tx.Model(&Order{})
-
-	err := query.Preload("UserTickets").Preload("User").Preload("Event").Preload("PaymentMethod").Where("status = ?", "paid").Order("created_at DESC").Find(&order).Error
+	if event_id != "" {
+		query.Where("event_id = ?", event_id)
+	}
+	err := query.Preload("UserTickets").Preload("User").Preload("User.Province").Preload("User.District").Preload("User.SubDistrict").Preload("Event").Preload("PaymentMethod").Where("status = ?", "paid").Order("created_at DESC").Find(&order).Error
 	if err != nil {
 		return nil, err
 	}

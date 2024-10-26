@@ -195,6 +195,14 @@ CREATE TABLE "payment_methods" (
   "deleted_at" timestamp
 );
 
+CREATE TABLE "otp_tx" (
+  "id" varchar PRIMARY KEY,
+  "email" varchar NOT NULL,
+  "code" varchar NOT NULL,
+  "expires_at" timestamp,
+  "created_at" timestamp,
+);
+
 ALTER TABLE "presence" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
 ALTER TABLE "presence" ADD FOREIGN KEY ("event_id") REFERENCES "events" ("id");
 

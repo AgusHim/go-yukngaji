@@ -21,7 +21,7 @@ func (r *repository) CreateUser(c *gin.Context, user *User) (*User, error) {
 
 func (r *repository) GetUserByEmail(c *gin.Context, email string) (*User, error) {
 	var user User
-	if err := r.db.Preload("Province").Preload("District").Preload("SubDistrict").Where("email = ?", email).Where("deleted_at IS NULL").First(&user).Error; err != nil {
+	if err := r.db.Preload("Province").Preload("District").Preload("SubDistrict").Where("email = ?", email).Where("deleted_at IS NULL").Order("created_at DESC").First(&user).Error; err != nil {
 		return nil, err
 	}
 	return &user, nil
@@ -42,7 +42,7 @@ func (r *repository) DeleteByID(c *gin.Context, id string) error {
 
 func (r *repository) Show(c *gin.Context, id string) (*User, error) {
 	user := &User{}
-	err := r.db.Preload("Province").Preload("District").Preload("SubDistrict").Where("id = ?", id).Where("deleted_at IS NULL").First(&user).Error
+	err := r.db.Preload("Province").Preload("District").Preload("SubDistrict").Where("id = ?", id).Where("deleted_at IS NULL").Order("created_at DESC").First(&user).Error
 	if err != nil {
 		return nil, err
 	}

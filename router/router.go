@@ -10,6 +10,7 @@ import (
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/like"
 	"mainyuk/internal/order"
+	"mainyuk/internal/otp"
 	"mainyuk/internal/payment_method"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/ranger"
@@ -45,6 +46,7 @@ func InitRouter(
 	userTicketHandler user_ticket.Handler,
 	paymentMethodHandler payment_method.Handler,
 	regionHandler region.Handler,
+	otpHandler otp.Handler,
 ) {
 	mode := os.Getenv("GIN_MODE")
 	gin.SetMode(mode)
@@ -66,6 +68,8 @@ func InitRouter(
 	api.POST("/login", userHandler.Login)
 	api.GET("/auth/google/login", userHandler.AuthGoogleLogin)
 	api.GET("/auth/google/callback", userHandler.AuthGoogleCallback)
+	api.POST("/auth/otp/request", otpHandler.RequestOTP)
+	api.POST("/auth/otp/verify", otpHandler.VerifyOTP)
 	user_api.PUT("/auth", authMiddleware.AuthUser, userHandler.UpdateAuth)
 	admin_api.PUT("/users/:id", authMiddleware.AuthPJ, userHandler.UpdateByAdmin)
 	admin_api.GET("/users/:id", authMiddleware.AuthPJ, userHandler.Show)
