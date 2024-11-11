@@ -78,3 +78,14 @@ func (h *handler) Index(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, res)
 }
+
+func (h *handler) IndexByEventID(c *gin.Context) {
+	res, err := h.Service.Index(c)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintln(err.Error()),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}

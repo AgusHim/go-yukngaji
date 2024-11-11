@@ -51,7 +51,21 @@ func (r *repository) ShowByPublicID(c *gin.Context, id string) (*UserTicket, err
 
 func (r *repository) Index(c *gin.Context) ([]*UserTicket, error) {
 	var userTickets []*UserTicket
-	err := r.db.Preload("Ticket").Preload("Event").Preload("User").Find(&userTickets).Error
+	tx := r.db
+	query := tx.Model(&UserTicket{})
+
+	event_id := c.Query("event_id")
+	if event_id != "" {
+		query.Where("event_id = ?", event_id)
+	}
+
+	orderStatus := c.Query("order[status]")
+	if orderStatus != "" {
+		query.Joins("Order")
+		query.Where("orders.status = ?", orderStatus)
+	}
+
+	err := query.Preload("Ticket").Preload("Event").Preload("Order").Preload("User").Preload("User.Province").Preload("User.District").Preload("User.SubDistrict").Find(&userTickets).Error
 	if err != nil {
 		return nil, err
 	}

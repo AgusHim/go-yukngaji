@@ -1,9 +1,14 @@
 package otp
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"html/template"
+	"log"
 	"mainyuk/internal/user"
+	"mainyuk/utils"
 	"math/big"
 	"time"
 
@@ -64,23 +69,23 @@ func (s *service) RequestOTP(c *gin.Context, req ReqOtp) (*Otp, error) {
 	}
 
 	// Send OTP in a goroutine, so it doesn’t block the request
-	// go func() {
-	// 	// Load HTML template
-	// 	tmpl, err := template.ParseFiles("template/otp_template.tmpl")
-	// 	if err != nil {
-	// 		log.Printf("Failed read template %s", err)
-	// 	}
+	go func() {
+		// Load HTML template
+		tmpl, err := template.ParseFiles("template/otp_template.tmpl")
+		if err != nil {
+			log.Printf("Failed read template %s", err)
+		}
 
-	// 	var body bytes.Buffer
-	// 	if err := tmpl.Execute(&body, otp); err != nil {
-	// 		log.Printf("Failed parse template %s", err)
-	// 	}
+		var body bytes.Buffer
+		if err := tmpl.Execute(&body, otp); err != nil {
+			log.Printf("Failed parse template %s", err)
+		}
 
-	// 	if err := utils.SendEmail(otp.Email, "no-reply@ynsolo.com", "Kode OTP untuk login di ynsolo.com", body.String()); err != nil {
-	// 		fmt.Printf("Failed to send OTP %s: %s", otp.Email, err)
-	// 		// Handle logging or any follow-up for failure if needed
-	// 	}
-	// }()
+		if err := utils.SendEmail(otp.Email, "no-reply@ynsolo.com", "Kode OTP untuk login di ynsolo.com", body.String()); err != nil {
+			fmt.Printf("Failed to send OTP %s: %s", otp.Email, err)
+			// Handle logging or any follow-up for failure if needed
+		}
+	}()
 	return otp, nil
 }
 

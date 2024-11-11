@@ -2,6 +2,7 @@ package user_ticket
 
 import (
 	"mainyuk/internal/event"
+	"mainyuk/internal/region"
 	"mainyuk/internal/ticket"
 	"time"
 
@@ -17,6 +18,7 @@ type UserTicket struct {
 	UserID     string         `json:"-" gorm:"user_id"`
 	User       *User          `json:"user" gorm:"foreignKey:user_id;references:id"`
 	OrderID    string         `json:"-" gorm:"order_id"`
+	Order      *Order         `json:"order" gorm:"foreignKey:order_id;references:id"`
 	TicketID   string         `json:"-" gorm:"ticket_id"`
 	Ticket     *ticket.Ticket `json:"ticket" gorm:"foreignKey:ticket_id;references:id"`
 	EventID    string         `json:"-"`
@@ -27,11 +29,30 @@ type UserTicket struct {
 }
 
 type User struct {
-	ID       string  `json:"id" `
-	Name     string  `json:"name" binding:"required"`
-	Username string  `json:"username" binding:"required"`
-	Gender   string  `json:"gender" binding:"required"`
-	Email    *string `json:"email" binding:"required"`
+	ID              string         `json:"id" `
+	Name            string         `json:"name" binding:"required"`
+	Username        string         `json:"username" binding:"required"`
+	Gender          string         `json:"gender" binding:"required"`
+	Phone           string         `json:"phone" binding:"required"`
+	Email           *string        `json:"email" binding:"required"`
+	Activity        *string        `json:"activity"`
+	ProvinceCode    *string        `json:"-" gorm:"province_code;size:2"`                                    // Stores the first 2 digits of the ID
+	DistrictCode    *string        `json:"-" gorm:"district_code;size:5"`                                    // Stores the first 5 digits of the ID
+	SubDistrictCode *string        `json:"-" gorm:"sub_district_code;size:8"`                                // Stores the first 8 digits of the code
+	Province        *region.Region `json:"province" gorm:"foreignKey:province_code;references:kode"`         // Relation to Province
+	District        *region.Region `json:"district" gorm:"foreignKey:district_code;references:kode"`         // Relation to District
+	SubDistrict     *region.Region `json:"sub_district" gorm:"foreignKey:sub_district_code;references:kode"` // Relation to Sub-district
+}
+
+type Order struct {
+	ID              string  `json:"id" binding:"required"`
+	PublicID        string  `json:"public_id"`
+	Amount          int     `json:"amount" binding:"required"`
+	Donation        int     `json:"donation" binding:"required"`
+	AdminFee        int     `json:"admin_fee" binding:"required"`
+	Status          string  `json:"status"`
+	InvoiceUrl      *string `json:"invoice_url"`
+	InvoiceImageUrl *string `json:"invoice_image_url"`
 }
 type CreateUserTicket struct {
 	UserName   string `json:"user_name" binding:"required"`
@@ -65,4 +86,5 @@ type Handler interface {
 	Create(ctx *gin.Context)
 	ShowByPublicID(ctx *gin.Context)
 	Index(ctx *gin.Context)
+	IndexByEventID(ctx *gin.Context)
 }

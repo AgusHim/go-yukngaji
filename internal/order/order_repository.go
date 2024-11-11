@@ -1,6 +1,8 @@
 package order
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -55,6 +57,17 @@ func (r *repository) Index(c *gin.Context, user_id *string) ([]*Order, error) {
 	if user_id != nil && *user_id != "" {
 		query.Where("user_id = ?", user_id)
 	}
+	// Filter status id
+	status := c.Query("status")
+	if status != "" {
+		query.Where("status = ?", strings.ToLower(status))
+	}
+	// Filter event_id
+	event_id := c.Query("event_id")
+	if event_id != "" {
+		query.Where("event_id = ?", event_id)
+	}
+
 	err := query.Preload("PaymentMethod").Preload("UserTickets").Preload("User").Preload("User.Province").Preload("User.District").Preload("User.SubDistrict").Preload("Event").Preload("PaymentMethod").Order("created_at DESC").Find(&order).Error
 	if err != nil {
 		return nil, err
