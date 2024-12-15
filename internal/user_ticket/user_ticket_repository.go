@@ -56,7 +56,7 @@ func (r *repository) Index(c *gin.Context) ([]*UserTicket, error) {
 
 	event_id := c.Query("event_id")
 	if event_id != "" {
-		query.Where("event_id = ?", event_id)
+		query.Joins("JOIN events ON events.id = user_tickets.event_id").Where("events.id = ?", event_id)
 	}
 
 	orderStatus := c.Query("order[status]")

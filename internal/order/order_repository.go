@@ -29,7 +29,7 @@ func (r *repository) Show(c *gin.Context, id string) (*Order, error) {
 	order := &Order{}
 	tx := r.db
 	query := tx.Model(&order)
-	err := query.Preload("User").Preload("Event").Preload("PaymentMethod").Where("id = ?", id).First(&order).Error
+	err := query.Preload("User").Preload("Event").Preload("Event.Divisi").Preload("PaymentMethod").Where("id = ?", id).First(&order).Error
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (r *repository) ShowByPublicID(c *gin.Context, public_id string, user_id *s
 	if user_id != nil {
 		query.Where("user_id = ?", user_id)
 	}
-	err := query.Preload("User").Preload("Event").Preload("PaymentMethod").Where("public_id = ?", public_id).First(&order).Error
+	err := query.Preload("User").Preload("Event").Preload("Event.Divisi").Preload("PaymentMethod").Where("public_id = ?", public_id).First(&order).Error
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (r *repository) Index(c *gin.Context, user_id *string) ([]*Order, error) {
 		query.Where("event_id = ?", event_id)
 	}
 
-	err := query.Preload("PaymentMethod").Preload("UserTickets").Preload("User").Preload("User.Province").Preload("User.District").Preload("User.SubDistrict").Preload("Event").Preload("PaymentMethod").Order("created_at DESC").Find(&order).Error
+	err := query.Preload("PaymentMethod").Preload("UserTickets").Preload("User").Preload("User.Province").Preload("User.District").Preload("User.SubDistrict").Preload("Event").Preload("Event.Divisi").Preload("PaymentMethod").Order("created_at DESC").Find(&order).Error
 	if err != nil {
 		return nil, err
 	}
