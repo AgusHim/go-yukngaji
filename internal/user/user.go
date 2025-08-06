@@ -23,16 +23,17 @@ type User struct {
 	Password        *string        `json:"-" binding:"required"`
 	Role            string         `json:"role"`
 	Activity        *string        `json:"activity"`
+	Source          *string        `json:"source"`
 	GoogleID        *string        `json:"-" gorm:"google_id"`
 	ImageUrl        *string        `json:"image_url"`
-	ProvinceCode    *string        `json:"-" gorm:"province_code;size:2"`                                    // Stores the first 2 digits of the ID
-	DistrictCode    *string        `json:"-" gorm:"district_code;size:5"`                                    // Stores the first 5 digits of the ID
-	SubDistrictCode *string        `json:"-" gorm:"sub_district_code;size:8"`                                // Stores the first 8 digits of the code
+	ProvinceCode    string         `json:"province_code" gorm:"province_code;size:2"`                        // Stores the first 2 digits of the ID
+	DistrictCode    string         `json:"district_code" gorm:"district_code;size:5"`                        // Stores the first 5 digits of the ID
+	SubDistrictCode string         `json:"sub_district_code" gorm:"sub_district_code;size:8"`                // Stores the first 8 digits of the code
 	Province        *region.Region `json:"province" gorm:"foreignKey:province_code;references:kode"`         // Relation to Province
 	District        *region.Region `json:"district" gorm:"foreignKey:district_code;references:kode"`         // Relation to District
 	SubDistrict     *region.Region `json:"sub_district" gorm:"foreignKey:sub_district_code;references:kode"` // Relation to Sub-district
 	CreatedAt       time.Time      `json:"created_at" `
-	UpdatedAt       time.Time      `json:"-" `
+	UpdatedAt       time.Time      `json:"updated_at" `
 	DeletedAt       *time.Time     `json:"-" `
 }
 
@@ -53,9 +54,10 @@ type CreateUser struct {
 	Address         string  `json:"address"`
 	Password        *string `json:"password"`
 	Activity        string  `json:"activity" binding:"required"`
-	ProvinceCode    *string `json:"province_code"`
-	DistrictCode    *string `json:"district_code"`
-	SubDistrictCode *string `json:"sub_district_code"`
+	Source          string  `json:"source" binding:"required"`
+	ProvinceCode    *string `json:"province_code" binding:"required"`
+	DistrictCode    *string `json:"district_code" binding:"required"`
+	SubDistrictCode *string `json:"sub_district_code" binding:"required"`
 }
 
 func CreateUserToUser(u CreateUser) (res *User, err error) {

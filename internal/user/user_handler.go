@@ -185,7 +185,8 @@ func (h *handler) UpdateAuth(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid JSON",
+			"error":   "Invalid JSON",
+			"message": err.Error(),
 		})
 		return
 	}

@@ -50,11 +50,36 @@ func (r *repository) Show(c *gin.Context, id string) (*User, error) {
 }
 
 func (r *repository) Update(c *gin.Context, id string, user *User) (*User, error) {
-	err := r.db.Where("id = ?", id).Save(user).Error
+	// Gunakan map untuk memastikan hanya field yang ingin diupdate yang dikirim
+	err := r.db.Model(&User{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"name":              user.Name,
+		"gender":            user.Gender,
+		"age":               user.Age,
+		"phone":             user.Phone,
+		"username":          user.Username,
+		"address":           user.Address,
+		"province_code":     user.ProvinceCode,
+		"district_code":     user.DistrictCode,
+		"sub_district_code": user.SubDistrictCode,
+		"activity":          user.Activity,
+		"source":            user.Source,
+		"instagram":         user.Instagram,
+		"password":          user.Password,
+		"birth_date":        user.BirthDate,
+		"updated_at":        time.Now(),
+	}).Error
+
 	if err != nil {
 		return nil, err
 	}
-	return user, nil
+
+	// Kembalikan hasil terkini
+	var updated User
+	if err := r.db.First(&updated, "id = ?", id).Error; err != nil {
+		return nil, err
+	}
+
+	return &updated, nil
 }
 
 func (r *repository) ShowByGoogleID(c *gin.Context, id string) (*User, error) {

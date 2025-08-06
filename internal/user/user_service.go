@@ -202,10 +202,17 @@ func (s *service) Update(c *gin.Context, id string, u *CreateUser) (*User, error
 	user.Phone = u.Phone
 	user.Username = u.Username
 	user.Address = u.Address
-	user.ProvinceCode = u.ProvinceCode
-	user.DistrictCode = u.DistrictCode
-	user.SubDistrictCode = u.SubDistrictCode
+	if u.ProvinceCode != nil {
+		user.ProvinceCode = *u.ProvinceCode
+	}
+	if u.DistrictCode != nil {
+		user.DistrictCode = *u.DistrictCode
+	}
+	if u.SubDistrictCode != nil {
+		user.SubDistrictCode = *u.SubDistrictCode
+	}
 	user.Activity = &u.Activity
+	user.Source = &u.Source
 
 	// if u.Email != nil {
 	// 	user.Email = u.Email
