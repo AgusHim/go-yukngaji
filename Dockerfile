@@ -1,29 +1,46 @@
-# Start from the official Golang image
-FROM golang:alpine
+# Stage 1: Build
+FROM golang:1.24-alpine AS builder
 
-# Install tzdata for timezone data
+# Install dependencies
 RUN apk add --no-cache tzdata
 
-# Set the timezone
+# Set timezone
 ENV TZ=Asia/Jakarta
 
-# Set the working directory inside the container
+# Set working directory
 WORKDIR /app
 
-# Copy go.mod and go.sum files to the working directory
+# Copy go mod files and download dependencies
 COPY go.mod go.sum ./
-
-# Download and install any dependencies defined in go.mod
 RUN go mod download
 
-# Copy the rest of the application source code to the working directory
+# Copy the rest of the application source code
 COPY . .
-
-# Copy .env to /app directiory
-COPY .env /app/.env
 
 # Build the Go application
 RUN go build -o go-yukngaji cmd/main.go
 
-# Command to run the executable
+# Stage 2: Run (minimal image)
+FROM alpine:latest
+
+# Install timezone data
+RUN apk add --no-cache tzdata ca-certificates
+
+# Set timezone
+ENV TZ=Asia/Jakarta
+
+# Set working directory
+WORKDIR /app
+
+# Copy binary and required files from builder
+COPY --from=builder /app/go-yukngaji .
+COPY --from=builder /app/template ./template
+
+# Copy .env if your app uses it
+COPY .env .env
+
+# Expose port if needed (optional, depending on your app)
+# EXPOSE 8080
+
+# Run the app
 CMD ["./go-yukngaji"]

@@ -1,0 +1,37 @@
+# Go build artifacts
+/go-yukngaji
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Output folders
+bin/
+build/
+dist/
+
+# Vendor folder (jika tidak pakai go mod vendor)
+vendor/
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+
+# OS / system files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker files
+Dockerfile
+docker-compose.yml
+
+# Env and config (optional, only if not needed in build)
+.env
+*.env
