@@ -79,7 +79,7 @@ func (r *repository) Index(c *gin.Context) ([]*Presence, error) {
 		query.Where("user_id = ?", currentUser.ID)
 	}
 
-	err := query.Preload("User").Preload("Event").Preload("UserTicket").Preload("UserTicket.Ticket").Where("deleted_at IS NULL").Find(&presences).Error
+	err := query.Preload("User").Preload("User.Province").Preload("User.District").Preload("User.SubDistrict").Preload("Event").Preload("UserTicket").Preload("UserTicket.Ticket").Where("deleted_at IS NULL").Find(&presences).Error
 	if err != nil {
 		return nil, err
 	}

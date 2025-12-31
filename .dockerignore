@@ -32,6 +32,3 @@ Thumbs.db
 Dockerfile
 docker-compose.yml
 
-# Env and config (optional, only if not needed in build)
-.env
-*.env

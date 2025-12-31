@@ -33,7 +33,9 @@ func (r *repository) Update(c *gin.Context, id string, ticket *Ticket) (*Ticket,
 
 func (r *repository) Show(c *gin.Context, id string) (*Ticket, error) {
 	ticket := &Ticket{}
-	err := r.db.Where("id = ?", id).Where("deleted_at IS NULL").First(&ticket).Error
+	err := r.db.Model(&Ticket{}).
+		Select("tickets.*, (SELECT COUNT(ut.id) FROM user_tickets ut JOIN orders o ON o.id = ut.order_id WHERE ut.ticket_id = tickets.id AND o.status IN ('pending', 'paid') AND o.deleted_at IS NULL AND ut.deleted_at IS NULL) as sold_pax").
+		Where("id = ?", id).Where("deleted_at IS NULL").First(&ticket).Error
 	if err != nil {
 		return nil, err
 	}
@@ -48,6 +50,8 @@ func (r *repository) Index(c *gin.Context) ([]*Ticket, error) {
 	if eventID != "" {
 		query.Where("event_id = ?", eventID)
 	}
+
+	query.Select("tickets.*, (SELECT COUNT(ut.id) FROM user_tickets ut JOIN orders o ON o.id = ut.order_id WHERE ut.ticket_id = tickets.id AND o.status IN ('pending', 'paid') AND o.deleted_at IS NULL AND ut.deleted_at IS NULL) as sold_pax")
 
 	err := query.Where("deleted_at IS NULL").Find(&tickets).Error
 	if err != nil {
