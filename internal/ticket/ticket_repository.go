@@ -24,10 +24,16 @@ func (r *repository) Create(c *gin.Context, ticket *Ticket) (*Ticket, error) {
 }
 
 func (r *repository) Update(c *gin.Context, id string, ticket *Ticket) (*Ticket, error) {
-	err := r.db.Save(&ticket).Error
+	err := r.db.
+		Model(&Ticket{}).
+		Where("id = ?", id).
+		Omit("sold_pax").
+		Updates(ticket).Error
+
 	if err != nil {
 		return nil, err
 	}
+
 	return ticket, nil
 }
 
