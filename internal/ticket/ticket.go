@@ -20,7 +20,7 @@ type Ticket struct {
 	MaxOrderPax   *int       `json:"max_order_pax"`
 	IsFull        bool       `json:"isFull" gorm:"-"`
 	MaxPax        int        `json:"max_pax"`
-	SoldPax       int        `json:"sold_pax"`
+	SoldPax       int        `json:"sold_pax" gorm:"-"`
 	GenderAllowed string     `json:"gender_allowed"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"-"`

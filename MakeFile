@@ -11,7 +11,7 @@ dropdb:
 	docker exec -it mainyuk-db dropdb postgres
 
 buildimage:
-	docker build -t gushim/yukngaji:latest .
+	docker build --platform linux/amd64 -t gushim/yukngaji:latest .
 
 runimage:
 	docker run --name go-yukngaji -p 8000:8000 -e HOST=0.0.0.0:8000 -e DB_USERNAME=postgres -e DB_PASSWORD=S3mogaSuks3s! -e DB_HOST=103.127.96.36 -e DB_DATABASE=yukngaji -e GIN_MODE=release -e GOOGLE_REDIRECT_URL=https://ynsolo.com/signin/google/callback -d gushim/yukngaji:latest
