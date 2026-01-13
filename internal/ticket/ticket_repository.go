@@ -16,7 +16,7 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *repository) Create(c *gin.Context, ticket *Ticket) (*Ticket, error) {
-	err := r.db.Create(ticket).Error
+	err := r.db.Omit("sold_pax").Create(ticket).Error
 	if err != nil {
 		return nil, err
 	}
