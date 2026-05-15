@@ -12,6 +12,7 @@ import (
 	"mainyuk/internal/order"
 	"mainyuk/internal/otp"
 	"mainyuk/internal/payment_method"
+	"mainyuk/internal/poll"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/ranger"
 	"mainyuk/internal/ranger_presence"
@@ -47,6 +48,7 @@ func InitRouter(
 	paymentMethodHandler payment_method.Handler,
 	regionHandler region.Handler,
 	otpHandler otp.Handler,
+	pollHandler poll.Handler,
 ) {
 	mode := os.Getenv("GIN_MODE")
 	gin.SetMode(mode)
@@ -151,6 +153,17 @@ func InitRouter(
 	admin_api.GET("/user_tickets", authMiddleware.AuthRanger, userTicketHandler.Index)
 
 	r.GET("/ws/events/:id", wsHandler.ConnectWS)
+
+	/* Polls */
+	admin_api.POST("/polls", authMiddleware.AuthAdmin, pollHandler.Create)
+	admin_api.GET("/polls/event/:event_id", authMiddleware.AuthAdmin, pollHandler.IndexByEventID)
+	admin_api.PUT("/polls/:id", authMiddleware.AuthAdmin, pollHandler.Update)
+	admin_api.PUT("/polls/:id/status", authMiddleware.AuthAdmin, pollHandler.UpdateStatus)
+	admin_api.DELETE("/polls/:id", authMiddleware.AuthAdmin, pollHandler.Delete)
+	api.GET("/polls/:id", pollHandler.Show)
+	api.GET("/polls/event/:event_id/active", pollHandler.ActiveByEventID)
+	api.POST("/polls/:id/respond", pollHandler.SubmitResponse)
+	api.GET("/polls/:id/results", pollHandler.GetResults)
 }
 
 func Start(addr string) error {

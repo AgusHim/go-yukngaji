@@ -14,6 +14,7 @@ import (
 	"mainyuk/internal/order"
 	"mainyuk/internal/otp"
 	"mainyuk/internal/payment_method"
+	"mainyuk/internal/poll"
 	"mainyuk/internal/presence"
 	"mainyuk/internal/ranger"
 	"mainyuk/internal/ranger_presence"
@@ -109,6 +110,10 @@ func main() {
 	otpService := otp.NewService(otpRepository, userRepository)
 	otpHandler := otp.NewHandler(otpService)
 
+	pollRepository := poll.NewRepository(db)
+	pollService := poll.NewService(pollRepository)
+	pollHandler := poll.NewHandler(pollService)
+
 	go hub.Run()
 
 	router.InitRouter(
@@ -130,6 +135,7 @@ func main() {
 		paymentMethodHandler,
 		regionHandler,
 		otpHandler,
+		pollHandler,
 	)
 
 	// output current time zone
