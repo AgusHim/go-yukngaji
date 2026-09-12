@@ -81,7 +81,7 @@ func (s *service) RequestOTP(c *gin.Context, req ReqOtp) (*Otp, error) {
 			log.Printf("Failed parse template %s", err)
 		}
 
-		if err := utils.SendEmail(otp.Email, "no-reply@ynsolo.com", "Kode OTP untuk login di ynsolo.com", body.String()); err != nil {
+		if err := utils.SendEmail(otp.Email, "no-reply@ynsolo.id", "Kode OTP untuk login di ynsolo.id", body.String()); err != nil {
 			fmt.Printf("Failed to send OTP %s: %s", otp.Email, err)
 			// Handle logging or any follow-up for failure if needed
 		}

@@ -21,7 +21,7 @@ func SendEmail(to string, from string, subject string, body string) error {
 	auth := smtp.PlainAuth("", username, password, smtpServer)
 
 	// Sending email.
-	err := smtp.SendMail(smtpServer+":"+smtpPort, auth, "no-reply@ynsolo.com", []string{to}, []byte(message))
+	err := smtp.SendMail(smtpServer+":"+smtpPort, auth, "no-reply@ynsolo.id", []string{to}, []byte(message))
 	if err != nil {
 		return err
 	}
