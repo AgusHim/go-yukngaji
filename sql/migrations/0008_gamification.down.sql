@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS xp_ledger;
+DROP TABLE IF EXISTS xp_rules;
+DROP TABLE IF EXISTS level_rules;
