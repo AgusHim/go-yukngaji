@@ -35,11 +35,15 @@ type PollOption struct {
 }
 
 type PollResponse struct {
-	ID           string    `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	PollID       string    `json:"poll_id"`
-	PollOptionID *string   `json:"poll_option_id"`
-	UserID       string    `json:"user_id"`
-	Username     string    `json:"username"`
+	ID           string  `json:"id" gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	PollID       string  `json:"poll_id"`
+	PollOptionID *string `json:"poll_option_id"`
+	// UserID kosong untuk jawaban tamu; hanya diisi dari identitas server.
+	UserID   *string `json:"user_id"`
+	Username string  `json:"username"`
+	// IsVerified menandai jawaban yang datang dari akun terautentikasi.
+	// Jawaban tamu tidak boleh dihitung sebagai bukti aktivitas akun.
+	IsVerified   bool      `json:"is_verified" gorm:"column:is_verified"`
 	TextResponse *string   `json:"text_response"`
 	Rank         *int      `json:"rank"`
 	CreatedAt    time.Time `json:"created_at"`
@@ -73,9 +77,11 @@ type UpdatePollStatus struct {
 	Status string `json:"status" binding:"required"`
 }
 
+// SubmitResponse tidak lagi menerima user_id. Bila pemanggil login, identitas
+// diambil dari token dan jawabannya ditandai terverifikasi; bila tamu,
+// jawaban disimpan tanpa user_id dengan is_verified = false.
 type SubmitResponse struct {
 	PollOptionID *string `json:"poll_option_id"`
-	UserID       string  `json:"user_id" binding:"required"`
 	Username     string  `json:"username"`
 	TextResponse *string `json:"text_response"`
 	Rank         *int    `json:"rank"`

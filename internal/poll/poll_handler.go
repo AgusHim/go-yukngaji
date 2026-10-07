@@ -3,6 +3,8 @@ package poll
 import (
 	"net/http"
 
+	"mainyuk/internal/ratelimit"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -101,6 +103,11 @@ func (h *handler) SubmitResponse(c *gin.Context) {
 
 	response, err := h.service.SubmitResponse(c, pollID, &req)
 	if err != nil {
+		// Rate limit harus terlihat sebagai 429, bukan 400.
+		if ratelimit.IsLimited(err) {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

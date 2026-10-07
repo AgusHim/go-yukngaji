@@ -49,8 +49,10 @@ func (r *repository) Index(c *gin.Context) ([]*Like, error) {
 	eventID := c.Query("event_id")
 	userID := c.Query("user_id")
 
+	// Hasil Where() harus di-assign ulang: tanpa itu klausa filter dibuang dan
+	// query mengembalikan seluruh like di database, bukan milik user/event ini.
 	if eventID != "" && userID != "" {
-		query.Where("event_id = ?", eventID).Where("user_id = ?", userID)
+		query = query.Where("event_id = ?", eventID).Where("user_id = ?", userID)
 	}
 	err := query.Find(&likes).Error
 	if err != nil {

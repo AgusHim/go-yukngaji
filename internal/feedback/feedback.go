@@ -22,9 +22,11 @@ func (Feedback) TableName() string {
 	return "feedback"
 }
 
+// CreateFeedback tidak menerima user_id. Kolom feedback.user_id bersifat NOT
+// NULL, jadi masukan hanya bisa dikirim oleh pengguna yang login dan
+// identitasnya diambil server dari token.
 type CreateFeedback struct {
 	EventID string `json:"event_id" binding:"required"`
-	UserID  string `json:"user_id" binding:"required"`
 	Message string `json:"message" binding:"required"`
 }
 

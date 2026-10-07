@@ -85,9 +85,13 @@ func (s *service) Index(c *gin.Context) ([]*Event, error) {
 
 func (s *service) Update(c *gin.Context, id string, event *Event) (*Event, error) {
 	event.UpdatedAt = time.Now()
-	event, err := s.Repository.Update(c, id,event)
+	event, err := s.Repository.Update(c, id, event)
 	if err != nil {
 		return nil, err
 	}
 	return event, nil
+}
+
+func (s *service) IncrementParticipant(c *gin.Context, id string) error {
+	return s.Repository.IncrementParticipant(c, id)
 }

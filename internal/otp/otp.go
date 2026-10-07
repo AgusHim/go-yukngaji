@@ -8,11 +8,14 @@ import (
 )
 
 type Otp struct {
-	ID        string `gorm:"primaryKey"`
-	Email     string
-	Code      string
-	ExpiresAt time.Time
-	CreatedAt time.Time
+	ID         string `gorm:"primaryKey"`
+	Email      string
+	Code       string
+	ExpiresAt  time.Time
+	Attempts   int        `gorm:"default:0"`
+	UsedAt     *time.Time `gorm:"column:used_at"`
+	LastSentAt *time.Time `gorm:"column:last_sent_at"`
+	CreatedAt  time.Time
 }
 
 func (Otp) TableName() string {
@@ -26,7 +29,17 @@ type ReqOtp struct {
 
 type Repository interface {
 	Create(c *gin.Context, otp *Otp) (*Otp, error)
-	Show(c *gin.Context, email *string, code *string) (*Otp, error)
+	// ShowActive mengambil OTP terbaru yang belum dipakai untuk email.
+	ShowActive(c *gin.Context, email string) (*Otp, error)
+	// MarkUsed menandai kode terpakai. Mengembalikan false bila baris sudah
+	// terpakai lebih dulu (replay request paralel).
+	MarkUsed(c *gin.Context, id string) (bool, error)
+	// IncrementAttempts menaikkan penghitung percobaan salah secara atomik.
+	IncrementAttempts(c *gin.Context, id string) error
+	// InvalidateActive menandai semua kode aktif email sebagai terpakai.
+	InvalidateActive(c *gin.Context, email string) error
+	// TouchLastSent memperbarui waktu kirim terakhir.
+	TouchLastSent(c *gin.Context, id string) error
 }
 
 type Service interface {

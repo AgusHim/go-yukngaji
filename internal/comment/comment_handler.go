@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"mainyuk/internal/httperr"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -28,9 +30,7 @@ func (h *handler) Create(c *gin.Context) {
 
 	res, err := h.Service.Create(c, &comment)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": fmt.Sprintln(err.Error()),
-		})
+		httperr.JSON(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, res)

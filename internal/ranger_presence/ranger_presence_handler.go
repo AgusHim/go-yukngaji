@@ -21,7 +21,7 @@ func (h *handler) Create(c *gin.Context) {
 	var presence CreatePresence
 	if err := c.ShouldBindJSON(&presence); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":    "Invalid JSON",
+			"error": "Invalid JSON",
 		})
 		return
 	}

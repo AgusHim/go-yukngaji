@@ -13,6 +13,7 @@ CREATE TABLE "users" (
   "google_id" varchar,
   "image_url" varchar,
   "role" varchar DEFAULT ('jamaah'),
+  "source" varchar,
   "activity" varchar DEFAULT ('pelajar'),
   "province_code" varchar,
   "district_code" varchar,
@@ -62,6 +63,7 @@ CREATE TABLE "presence" (
   "user_ticket_id" varchar,
   "admin_id" varchar,
   "is_new" boolean DEFAULT (true),
+  "check_in_date" date,
   "created_at" timestamp,
   "updated_at" timestamp DEFAULT (now()),
   "deleted_at" timestamp
@@ -156,6 +158,7 @@ CREATE TABLE "user_tickets" (
   "user_email" varchar NOT NULL,
   "user_gender" varchar NOT NULL,
   "user_id" varchar NOT NULL,
+  "participant_user_id" varchar,
   "order_id" varchar NOT NULL,
   "ticket_id" varchar NOT NULL,
   "event_id" varchar NOT NULL,
@@ -201,6 +204,9 @@ CREATE TABLE "otp_tx" (
   "code" varchar NOT NULL,
   "expires_at" timestamp,
   "created_at" timestamp,
+  "attempts" integer NOT NULL DEFAULT 0,
+  "used_at" timestamp,
+  "last_sent_at" timestamp
 );
 
 ALTER TABLE "presence" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");

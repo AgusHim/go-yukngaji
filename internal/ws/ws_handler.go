@@ -5,38 +5,64 @@ import (
 	"net/http"
 	"time"
 
+	"mainyuk/internal/user"
+
 	"github.com/gin-gonic/gin"
 )
 
-type Handler struct {
-	hub *Hub
+// TokenVerifier memvalidasi token WebSocket dan memuat akun aktif.
+type TokenVerifier interface {
+	UserFromToken(ctx *gin.Context, token string) (*user.User, error)
 }
 
-func NewHandler(h *Hub) *Handler {
+type Handler struct {
+	hub      *Hub
+	verifier TokenVerifier
+}
+
+func NewHandler(h *Hub, verifier TokenVerifier) *Handler {
 	return &Handler{
-		hub: h,
+		hub:      h,
+		verifier: verifier,
 	}
 }
 
+// ConnectWS membuka koneksi WebSocket untuk sebuah event.
+//
+// Identitas hanya diambil dari token yang valid. Parameter query `user_id` dan
+// `username` tidak lagi dipercaya: sebelumnya siapa pun bisa menyamar sebagai
+// pengguna lain hanya dengan mengubah URL. Tanpa token valid, koneksi tetap
+// dibuka sebagai tamu anonim.
 func (h *Handler) ConnectWS(c *gin.Context) {
-	userID := c.Query("user_id")
-	username := c.Query("username")
 	roomID := c.Param("id")
+	if roomID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "room id is required"})
+		return
+	}
+
+	userID, username := "", "Anonim"
+	if token := TokenFromRequest(c.Request); token != "" && h.verifier != nil {
+		if u, err := h.verifier.UserFromToken(c, token); err == nil && u != nil {
+			userID = u.ID
+			username = u.Username
+		}
+	}
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
+		// Upgrade sudah menulis respons sendiri; jangan menulis lagi.
 		log.Println("Error Upgrade Websocket", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
-	currentTime := time.Now()
-	log.Printf("[User Join] %s join room %s", username, roomID)
 	client := &Client{
-		UserID:   userID,
-		Username: username,
-		RoomID:   roomID,
-		hub:      h.hub, conn: conn, send: make(chan *Message, 5),
-		ConnectAt: currentTime,
+		UserID:    userID,
+		Username:  username,
+		RoomID:    roomID,
+		hub:       h.hub,
+		conn:      conn,
+		send:      make(chan *Message, 5),
+		ConnectAt: time.Now(),
 	}
 	client.hub.register <- client
 

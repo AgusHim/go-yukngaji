@@ -1,6 +1,8 @@
 package comment
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -54,4 +56,13 @@ func (r *repository) Update(c *gin.Context, comment *Comment) (*Comment, error) 
 		return nil, err
 	}
 	return comment, nil
+}
+
+// AdjustLike mengubah kolom like lewat ekspresi SQL supaya dua like yang
+// masuk bersamaan tidak saling menimpa, dan tidak ikut menulis kolom lain.
+func (r *repository) AdjustLike(c *gin.Context, id string, delta int) error {
+	return r.db.Model(&Comment{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"like":       gorm.Expr("GREATEST(like + ?, 0)", delta),
+		"updated_at": time.Now(),
+	}).Error
 }

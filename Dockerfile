@@ -20,6 +20,11 @@ COPY . .
 # Build the Go application
 RUN go build -o go-yukngaji cmd/main.go
 
+# Runner migrasi ikut dibangun supaya `migrate up` dapat dijalankan di server
+# lewat container yang sama. Tanpa ini, langkah migrasi pada urutan rilis
+# (docs/deployment.md) tidak punya biner untuk dijalankan.
+RUN go build -o migrate ./cmd/migrate
+
 # Stage 2: Run (minimal image)
 FROM alpine:latest
 
@@ -36,8 +41,15 @@ WORKDIR /app
 COPY --from=builder /app/go-yukngaji .
 COPY --from=builder /app/template ./template
 
-# Copy .env if your app uses it
-COPY .env .env
+# Berkas migrasi dibutuhkan `./migrate`, yang membaca `sql/migrations`
+# relatif terhadap direktori kerja.
+COPY --from=builder /app/migrate .
+COPY --from=builder /app/sql/migrations ./sql/migrations
+
+# Rahasia TIDAK dibakar ke dalam image. `godotenv.Load()` bersifat opsional
+# (cmd/main.go), jadi variabel cukup datang dari environment saat
+# `docker run` — lihat target `runimage` di MakeFile. Berkas `.env` juga
+# didaftarkan di .dockerignore supaya tidak ikut lapisan build.
 
 # Expose port if needed (optional, depending on your app)
 # EXPOSE 8080

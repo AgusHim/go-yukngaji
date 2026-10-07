@@ -18,8 +18,11 @@ func NewService(repository Repository) Service {
 	}
 }
 
-// Register implements Service
-func (s *service) Create(c *gin.Context, req *CreateUserTicket) (*UserTicket, error) {
+// NewUserTicket membangun UserTicket lengkap dengan ID dan public ID-nya.
+//
+// Dipakai bersama oleh service ini dan order service, sehingga pembuatan
+// tiket lewat checkout dan lewat endpoint lain tidak menyimpang.
+func NewUserTicket(req CreateUserTicket) *UserTicket {
 	userTicket := &UserTicket{}
 	userTicket.ID = uuid.NewString()
 
@@ -30,12 +33,19 @@ func (s *service) Create(c *gin.Context, req *CreateUserTicket) (*UserTicket, er
 	userTicket.UserEmail = req.UserEmail
 	userTicket.UserGender = req.UserGender
 	userTicket.UserID = req.UserID
+	userTicket.ParticipantUserID = req.ParticipantUserID
 	userTicket.OrderID = req.OrderID
 	userTicket.TicketID = req.TicketID
 	userTicket.EventID = req.EventID
 
 	userTicket.CreatedAt = time.Now()
 	userTicket.UpdatedAt = time.Now()
+	return userTicket
+}
+
+// Register implements Service
+func (s *service) Create(c *gin.Context, req *CreateUserTicket) (*UserTicket, error) {
+	userTicket := NewUserTicket(*req)
 
 	userTicket, err := s.Repository.Create(c, userTicket)
 
@@ -43,6 +53,14 @@ func (s *service) Create(c *gin.Context, req *CreateUserTicket) (*UserTicket, er
 		return nil, err
 	}
 	return userTicket, nil
+}
+
+func (s *service) CountByTicketID(c *gin.Context, ticket_id string) (int64, error) {
+	return s.Repository.CountByTicketID(c, ticket_id)
+}
+
+func (s *service) ClaimTicketsByEmail(c *gin.Context, user_id string, email string) (int64, error) {
+	return s.Repository.ClaimByEmail(c, user_id, email)
 }
 
 func (s *service) Update(c *gin.Context, id string, req *CreateUserTicket) (*UserTicket, error) {

@@ -1,7 +1,8 @@
 package otp
 
 import (
-	"fmt"
+	"errors"
+	"mainyuk/internal/user"
 	"mainyuk/utils"
 	"net/http"
 
@@ -18,6 +19,24 @@ func NewHandler(s Service) Handler {
 	}
 }
 
+// statusForError memetakan error OTP ke status HTTP yang sesuai, supaya
+// client bisa membedakan "coba lagi nanti" dari kegagalan server.
+func statusForError(err error) int {
+	switch {
+	case errors.Is(err, ErrRateLimited):
+		return http.StatusTooManyRequests
+	case errors.Is(err, ErrEmailInvalid),
+		errors.Is(err, ErrOTPNotFound),
+		errors.Is(err, ErrOTPUsed),
+		errors.Is(err, ErrOTPExpired),
+		errors.Is(err, ErrOTPMismatch),
+		errors.Is(err, ErrOTPAttempts):
+		return http.StatusBadRequest
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
 func (h *handler) RequestOTP(c *gin.Context) {
 	var req ReqOtp
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -28,8 +47,8 @@ func (h *handler) RequestOTP(c *gin.Context) {
 	}
 	res, err := h.Service.RequestOTP(c, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": fmt.Sprintln(err.Error()),
+		c.JSON(statusForError(err), gin.H{
+			"error": err.Error(),
 		})
 		return
 	}
@@ -55,8 +74,8 @@ func (h *handler) VerifyOTP(c *gin.Context) {
 	}
 	res, err := h.Service.VerifyOTP(c, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": fmt.Sprintln(err.Error()),
+		c.JSON(statusForError(err), gin.H{
+			"error": err.Error(),
 		})
 		return
 	}
@@ -69,8 +88,10 @@ func (h *handler) VerifyOTP(c *gin.Context) {
 		return
 	}
 
+	// DTO akun yang sama dengan Login/Me, supaya kontrak respons konsisten
+	// dan data internal tidak ikut terkirim.
 	c.JSON(http.StatusOK, gin.H{
-		"user":         res,
+		"user":         user.ToAccountResponse(res),
 		"access_token": token,
 	})
 }

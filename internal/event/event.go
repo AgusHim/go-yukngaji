@@ -70,6 +70,8 @@ type Repository interface {
 	ShowByCode(ctx *gin.Context, code string) (*Event, error)
 	Index(ctx *gin.Context) ([]*Event, error)
 	Update(ctx *gin.Context, id string, event *Event) (*Event, error)
+	// IncrementParticipant menaikkan penghitung peserta secara atomik.
+	IncrementParticipant(ctx *gin.Context, id string) error
 }
 
 type Service interface {
@@ -78,6 +80,9 @@ type Service interface {
 	ShowByCode(ctx *gin.Context, code string) (*Event, error)
 	Index(ctx *gin.Context) ([]*Event, error)
 	Update(ctx *gin.Context, id string, event *Event) (*Event, error)
+	// IncrementParticipant menaikkan penghitung peserta secara atomik.
+	// Dipakai check-in supaya pemindaian paralel tidak saling menimpa.
+	IncrementParticipant(ctx *gin.Context, id string) error
 }
 
 type Handler interface {

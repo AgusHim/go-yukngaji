@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"html/template"
 	"log"
+	"mainyuk/internal/apperr"
+	"mainyuk/internal/ratelimit"
 	"mainyuk/internal/user"
 	"mainyuk/utils"
 	"math/big"
@@ -17,14 +18,14 @@ import (
 )
 
 type service struct {
-	Repository     Repository
-	UserRepository user.Repository
+	Repository  Repository
+	UserService user.Service
 }
 
-func NewService(repository Repository, userRepository user.Repository) Service {
+func NewService(repository Repository, userService user.Service) Service {
 	return &service{
-		Repository:     repository,
-		UserRepository: userRepository,
+		Repository:  repository,
+		UserService: userService,
 	}
 }
 
@@ -42,110 +43,126 @@ func GenerateOTP(length int) (string, error) {
 }
 
 func (s *service) RequestOTP(c *gin.Context, req ReqOtp) (*Otp, error) {
-	otpActive, _ := s.Repository.Show(c, &req.Email, nil)
-	if otpActive != nil {
-		now := time.Now()
-		current := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
-		expires := otpActive.ExpiresAt
-		if current.Before(expires) {
-			return otpActive, nil
+	email := NormalizeEmail(req.Email)
+	if email == "" {
+		return nil, ErrEmailInvalid
+	}
+
+	if !ratelimit.OTPRequest.Allow("otp:" + email) {
+		return nil, ErrRateLimited
+	}
+
+	now := time.Now()
+
+	active, _ := s.Repository.ShowActive(c, email)
+	if active != nil {
+		// Masih dalam masa tenggang: jangan kirim ulang.
+		if !CanResend(active, now, ResendCooldown) {
+			return active, nil
+		}
+		// Masih berlaku tetapi cooldown sudah lewat: kirim ulang kode yang sama.
+		if now.Before(active.ExpiresAt) {
+			s.sendOTPAsync(active)
+			if err := s.Repository.TouchLastSent(c, active.ID); err != nil {
+				log.Printf("[otp] gagal memperbarui last_sent_at %s: %v", active.ID, err)
+			}
+			return active, nil
 		}
 	}
 
-	otp := &Otp{}
-	otp.ID = uuid.NewString()
-	otp.Email = req.Email
+	// Kode baru menggantikan kode aktif sebelumnya.
+	if err := s.Repository.InvalidateActive(c, email); err != nil {
+		return nil, err
+	}
+
 	code, err := GenerateOTP(6)
 	if err != nil {
 		return nil, err
 	}
+
+	otp := &Otp{}
+	otp.ID = uuid.NewString()
+	otp.Email = email
 	otp.Code = code
-	now := time.Now()
 	otp.CreatedAt = now
-	otp.ExpiresAt = now.Add(15 * time.Minute)
+	otp.ExpiresAt = now.Add(CodeTTL)
+	otp.LastSentAt = &now
+
 	otp, err = s.Repository.Create(c, otp)
 	if err != nil {
 		return nil, err
 	}
 
-	// Send OTP in a goroutine, so it doesn’t block the request
+	s.sendOTPAsync(otp)
+	return otp, nil
+}
+
+// sendOTPAsync mengirim email di goroutine terpisah agar tidak memblokir
+// request. Kegagalan dicatat, tidak ditelan diam-diam.
+func (s *service) sendOTPAsync(otp *Otp) {
 	go func() {
-		// Load HTML template
 		tmpl, err := template.ParseFiles("template/otp_template.tmpl")
 		if err != nil {
-			log.Printf("Failed read template %s", err)
+			log.Printf("[otp] gagal membaca template: %s", err)
+			return
 		}
 
 		var body bytes.Buffer
 		if err := tmpl.Execute(&body, otp); err != nil {
-			log.Printf("Failed parse template %s", err)
+			log.Printf("[otp] gagal merender template: %s", err)
+			return
 		}
 
 		if err := utils.SendEmail(otp.Email, "no-reply@ynsolo.id", "Kode OTP untuk login di ynsolo.id", body.String()); err != nil {
-			fmt.Printf("Failed to send OTP %s: %s", otp.Email, err)
-			// Handle logging or any follow-up for failure if needed
+			log.Printf("[otp] gagal mengirim OTP ke %s: %s", otp.Email, err)
 		}
 	}()
-	return otp, nil
 }
 
 func (s *service) VerifyOTP(c *gin.Context, req ReqOtp) (*user.User, error) {
-	otp, err := s.Repository.Show(c, &req.Email, nil)
+	email := NormalizeEmail(req.Email)
+	if email == "" {
+		return nil, ErrEmailInvalid
+	}
+
+	rateKey := "otpverify:" + email
+	if !ratelimit.OTPVerify.Allow(rateKey) {
+		return nil, ErrRateLimited
+	}
+
+	otp, err := s.Repository.ShowActive(c, email)
 	if err != nil {
+		return nil, ErrOTPNotFound
+	}
+
+	if err := ValidateOTP(otp, req.Code, time.Now(), MaxAttempts); err != nil {
+		if errors.Is(err, ErrOTPMismatch) {
+			if incErr := s.Repository.IncrementAttempts(c, otp.ID); incErr != nil {
+				log.Printf("[otp] gagal menaikkan attempts %s: %v", otp.ID, incErr)
+			}
+		}
 		return nil, err
 	}
 
-	if otp.Code != req.Code {
-		return nil, errors.New("code OTP not match")
-	}
-
-	// Check Expires
-	now := time.Now()
-	current := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second(), 0, time.UTC)
-	expires := otp.ExpiresAt
-	if current.After(expires) {
-		return nil, errors.New("code OTP expired")
-	}
-
-	u, _ := s.UserRepository.GetUserByEmail(c, req.Email)
-	if u != nil {
-		return u, nil
-	}
-	user := &user.User{}
-	user.ID = uuid.NewString()
-	user.Name = ""
-	user.Username = "anonim"
-	user.Gender = "male"
-
-	user.Age = 0
-	user.Phone = ""
-	user.Email = &otp.Email
-	user.Address = ""
-	user.Role = "user"
-
-	user.Activity = nil
-
-	user.CreatedAt = time.Now()
-	user.UpdatedAt = time.Now()
-
-	user, err = s.UserRepository.CreateUser(c, user)
+	// Kode sekali pakai. Bila baris sudah ditandai terpakai oleh request
+	// paralel, MarkUsed mengembalikan false dan verifikasi ditolak.
+	consumed, err := s.Repository.MarkUsed(c, otp.ID)
 	if err != nil {
-		return u, nil
+		return nil, err
+	}
+	if !consumed {
+		return nil, ErrOTPUsed
 	}
 
-	return user, nil
+	ratelimit.OTPVerify.Reset(rateKey)
+
+	return s.UserService.EnsureMemberByEmail(c, email)
 }
 
 func (s *service) GetUserIDAuth(c *gin.Context) (*user.User, error) {
-	u, exists := c.Get("currentUser")
-	if !exists {
-		return nil, errors.New("not authrized")
-	}
-
-	currentUser, ok := u.(user.User)
-
+	u, ok := user.FromContext(c)
 	if !ok {
-		return nil, errors.New("FailedParsing: current user")
+		return nil, apperr.ErrUnauthorized
 	}
-	return &currentUser, nil
+	return u, nil
 }

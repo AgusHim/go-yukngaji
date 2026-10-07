@@ -3,6 +3,8 @@ package like
 import (
 	"time"
 
+	"mainyuk/internal/community"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,10 +18,11 @@ type Like struct {
 	DeletedAt *time.Time `json:"-" binding:"required"`
 }
 
+// CreateLike tidak menerima user_id dari client; identitas penyuka diambil
+// server dari token.
 type CreateLike struct {
 	LikeID    string `json:"like_id"`
 	CommentID string `json:"comment_id" binding:"required"`
-	UserID    string `json:"user_id" binding:"required"`
 }
 
 type Repository interface {
@@ -29,10 +32,19 @@ type Repository interface {
 	Index(ctx *gin.Context) ([]*Like, error)
 }
 
+// AuthorGuard adalah seam sempit ke modul identitas komunitas, dipenuhi oleh
+// community.Service. Sama seperti di internal/comment: akun yang dibatasi
+// tidak boleh menulis, termasuk menyukai komentar.
+type AuthorGuard interface {
+	EnsureProfile(ctx *gin.Context, userID string) (*community.Profile, error)
+}
+
 type Service interface {
 	Create(ctx *gin.Context, req *CreateLike) (*Like, error)
 	Delete(ctx *gin.Context, id string) error
 	Index(ctx *gin.Context) ([]*Like, error)
+	// SetAuthorGuard memasang pemeriksa blokir akun. Boleh tidak dipasang.
+	SetAuthorGuard(guard AuthorGuard)
 }
 
 type Handler interface {

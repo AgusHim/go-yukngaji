@@ -32,3 +32,11 @@ Thumbs.db
 Dockerfile
 docker-compose.yml
 
+# Rahasia. `COPY . .` pada stage build akan menyertakan berkas ini ke lapisan
+# build kalau tidak didaftarkan di sini. Pola `.env` hanya cocok dengan berkas
+# bernama persis `.env`, sehingga `.env.example` tetap ikut terbawa.
+.env
+.env.local
+*.pem
+*.key
+

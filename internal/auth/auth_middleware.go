@@ -1,7 +1,10 @@
 package auth
 
 import (
-	"log"
+	"errors"
+	"mainyuk/internal/apperr"
+	"mainyuk/internal/authz"
+	"mainyuk/internal/httperr"
 	"mainyuk/internal/user"
 	"mainyuk/utils"
 	"net/http"
@@ -21,212 +24,132 @@ func NewMiddleware(us user.Service) Middleware {
 	}
 }
 
-func (m *middleware) AuthAdmin(c *gin.Context) {
+var errUnauthorized = errors.New("unauthorized")
 
-	/*Check header Bearer*/
+// currentUserFromRequest membaca identitas dari header Authorization.
+//
+// Tanpa header Bearer sama sekali -> (nil, nil): pemanggil memutuskan apakah
+// itu tamu yang sah (AuthOptionalUser) atau ditolak (Auth*).
+// Header ada tetapi tidak bisa dipakai -> (nil, errUnauthorized).
+func (m *middleware) currentUserFromRequest(c *gin.Context) (*user.User, error) {
 	authHeader := c.GetHeader("Authorization")
-
 	if !strings.Contains(authHeader, "Bearer") {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize bearer",
-		})
-		return
+		return nil, nil
 	}
 
-	tokenString := ""
-	arrayToken := strings.Split(authHeader, " ")
-	if len(arrayToken) == 2 {
-		tokenString = arrayToken[1]
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 {
+		return nil, errUnauthorized
 	}
+	tokenString := strings.TrimSpace(parts[1])
+	if tokenString == "" {
+		return nil, errUnauthorized
+	}
+	return m.userFromToken(c, tokenString)
+}
 
+// UserFromToken memvalidasi token JWT yang datang bukan dari header
+// Authorization (mis. query WebSocket) dan memuat akun aktifnya.
+func (m *middleware) UserFromToken(c *gin.Context, tokenString string) (*user.User, error) {
+	if strings.TrimSpace(tokenString) == "" {
+		return nil, errUnauthorized
+	}
+	return m.userFromToken(c, tokenString)
+}
+
+func (m *middleware) userFromToken(c *gin.Context, tokenString string) (*user.User, error) {
 	token, err := utils.ValidateJWT(tokenString)
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize validate",
-		})
-		return
+		return nil, errUnauthorized
 	}
 
 	claim, ok := token.Claims.(jwt.MapClaims)
-
 	if !ok || !token.Valid {
+		return nil, errUnauthorized
+	}
+
+	userID, ok := claim["user_id"].(string)
+	if !ok || userID == "" {
+		return nil, errUnauthorized
+	}
+
+	u, err := m.UserService.Show(c, userID)
+	if err != nil {
+		return nil, errUnauthorized
+	}
+	return u, nil
+}
+
+// guard menolak request tanpa identitas valid atau dengan role yang tidak
+// diizinkan. Handler berikutnya hanya jalan bila guard lolos.
+func (m *middleware) guard(c *gin.Context, allow func(role string) bool) {
+	u, err := m.currentUserFromRequest(c)
+	if err != nil || u == nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize claim",
+			"error": "Unauthorized",
 		})
 		return
 	}
-
-	userID := claim["user_id"].(string)
-
-	user, errUser := m.UserService.Show(c, userID)
-	if errUser != nil {
+	if !allow(u.Role) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize not found",
+			"error": "Unauthorized role",
 		})
 		return
 	}
-	if user.Role != "admin" {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize role",
-		})
-		return
-	}
+	c.Set(user.ContextKey, *u)
+}
 
-	c.Set("currentUser", *user)
+func (m *middleware) AuthAdmin(c *gin.Context) {
+	m.guard(c, func(role string) bool {
+		return role == authz.RoleAdmin
+	})
 }
 
 func (m *middleware) AuthPJ(c *gin.Context) {
-
-	/*Check header Bearer*/
-	authHeader := c.GetHeader("Authorization")
-
-	if !strings.Contains(authHeader, "Bearer") {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize bearer",
-		})
-		return
-	}
-
-	tokenString := ""
-	arrayToken := strings.Split(authHeader, " ")
-	if len(arrayToken) == 2 {
-		tokenString = arrayToken[1]
-	}
-
-	token, err := utils.ValidateJWT(tokenString)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize validate",
-		})
-		return
-	}
-
-	claim, ok := token.Claims.(jwt.MapClaims)
-
-	if !ok || !token.Valid {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize claim",
-		})
-		return
-	}
-
-	userID := claim["user_id"].(string)
-
-	user, errUser := m.UserService.Show(c, userID)
-	if errUser != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize not found",
-		})
-		return
-	}
-	if user.Role != "admin" && user.Role != "pj" {
-		log.Println("User role =", user.Role)
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize role",
-		})
-		return
-	}
-
-	c.Set("currentUser", *user)
+	m.guard(c, authz.IsStaff)
 }
 
 func (m *middleware) AuthRanger(c *gin.Context) {
-
-	/*Check header Bearer*/
-	authHeader := c.GetHeader("Authorization")
-
-	if !strings.Contains(authHeader, "Bearer") {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize bearer",
-		})
-		return
-	}
-
-	tokenString := ""
-	arrayToken := strings.Split(authHeader, " ")
-	if len(arrayToken) == 2 {
-		tokenString = arrayToken[1]
-	}
-
-	token, err := utils.ValidateJWT(tokenString)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize validate",
-		})
-		return
-	}
-
-	claim, ok := token.Claims.(jwt.MapClaims)
-
-	if !ok || !token.Valid {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize claim",
-		})
-		return
-	}
-
-	userID := claim["user_id"].(string)
-
-	user, errUser := m.UserService.Show(c, userID)
-	if errUser != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize not found",
-		})
-		return
-	}
-	if user.Role != "ranger" && user.Role != "pj" && user.Role != "admin" {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize role",
-		})
-		return
-	}
-
-	c.Set("currentUser", *user)
+	m.guard(c, authz.IsRanger)
 }
 
+// AuthUser menerima semua pengguna yang terautentikasi, apa pun role-nya
+// (anggota, ranger, pj, maupun admin).
 func (m *middleware) AuthUser(c *gin.Context) {
+	m.guard(c, func(role string) bool {
+		return role != ""
+	})
+}
 
-	/*Check header Bearer*/
-	authHeader := c.GetHeader("Authorization")
-
-	if !strings.Contains(authHeader, "Bearer") {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize bearer",
-		})
-		return
+// AuthOptionalUser tidak menolak request. Bila Bearer valid, user aktif
+// dipasang di context; bila tidak, request lanjut sebagai tamu.
+//
+// Middleware ini dipakai pada route publik yang perilakunya berbeda untuk
+// pengguna login (mis. komentar, presence, poll). Handler harus tetap
+// mengambil identitas lewat user.FromContext, bukan dari body request.
+func (m *middleware) AuthOptionalUser(c *gin.Context) {
+	u, err := m.currentUserFromRequest(c)
+	if err == nil && u != nil {
+		c.Set(user.ContextKey, *u)
 	}
+	c.Next()
+}
 
-	tokenString := ""
-	arrayToken := strings.Split(authHeader, " ")
-	if len(arrayToken) == 2 {
-		tokenString = arrayToken[1]
+// RequirePermission memeriksa izin bertipe milik pengguna aktif dan menulis
+// responsnya sendiri bila gagal. Mengembalikan false berarti handler harus
+// berhenti.
+//
+// Middleware AuthPJ hanya membatasi ke pengurus; fungsi ini menutup perbedaan
+// izin antar-role pengurus (mis. ranger tidak boleh mengelola misi).
+func RequirePermission(c *gin.Context, p authz.Permission) bool {
+	u, ok := user.FromContext(c)
+	if !ok {
+		httperr.JSON(c, apperr.ErrUnauthorized)
+		return false
 	}
-
-	token, err := utils.ValidateJWT(tokenString)
-	if err != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize validate",
-		})
-		return
+	if !authz.Can(u.Role, p) {
+		httperr.JSON(c, apperr.ErrForbidden)
+		return false
 	}
-
-	claim, ok := token.Claims.(jwt.MapClaims)
-
-	if !ok || !token.Valid {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize claim",
-		})
-		return
-	}
-
-	userID := claim["user_id"].(string)
-
-	user, errUser := m.UserService.Show(c, userID)
-	if errUser != nil {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Unauthorize not found",
-		})
-		return
-	}
-	c.Set("currentUser", *user)
+	return true
 }

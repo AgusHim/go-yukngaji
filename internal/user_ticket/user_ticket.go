@@ -10,22 +10,43 @@ import (
 )
 
 type UserTicket struct {
-	ID         string         `json:"id" binding:"required"`
-	PublicID   string         `json:"public_id" binding:"required"`
-	UserName   string         `json:"user_name" binding:"required"`
-	UserEmail  string         `json:"user_email" binding:"required"`
-	UserGender string         `json:"user_gender" binding:"required"`
-	UserID     string         `json:"-" gorm:"user_id"`
-	User       *User          `json:"user" gorm:"foreignKey:user_id;references:id"`
-	OrderID    string         `json:"-" gorm:"order_id"`
-	Order      *Order         `json:"order" gorm:"foreignKey:order_id;references:id"`
-	TicketID   string         `json:"-" gorm:"ticket_id"`
-	Ticket     *ticket.Ticket `json:"ticket" gorm:"foreignKey:ticket_id;references:id"`
-	EventID    string         `json:"-"`
-	Event      *event.Event   `json:"event" gorm:"foreignKey:event_id;references:id"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"-"`
-	DeletedAt  *time.Time     `json:"-"`
+	ID         string `json:"id" binding:"required"`
+	PublicID   string `json:"public_id" binding:"required"`
+	UserName   string `json:"user_name" binding:"required"`
+	UserEmail  string `json:"user_email" binding:"required"`
+	UserGender string `json:"user_gender" binding:"required"`
+
+	// UserID adalah PEMBELI order (semantik lama dipertahankan agar data dan
+	// relasi yang ada tetap terbaca). Peserta yang benar-benar hadir disimpan
+	// di ParticipantUserID.
+	UserID string `json:"-" gorm:"user_id"`
+	User   *User  `json:"user" gorm:"foreignKey:user_id;references:id"`
+
+	// ParticipantUserID adalah akun terverifikasi dari peserta tiket ini.
+	// NULL berarti emailnya belum punya akun dan tiket masih bisa diklaim.
+	ParticipantUserID *string `json:"-" gorm:"column:participant_user_id"`
+	Participant       *User   `json:"participant" gorm:"foreignKey:participant_user_id;references:id"`
+
+	OrderID  string         `json:"-" gorm:"order_id"`
+	Order    *Order         `json:"order" gorm:"foreignKey:order_id;references:id"`
+	TicketID string         `json:"-" gorm:"ticket_id"`
+	Ticket   *ticket.Ticket `json:"ticket" gorm:"foreignKey:ticket_id;references:id"`
+	EventID  string         `json:"-"`
+	Event    *event.Event   `json:"event" gorm:"foreignKey:event_id;references:id"`
+
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"-"`
+	DeletedAt *time.Time `json:"-"`
+}
+
+// ParticipantUserIDValue mengembalikan id peserta terverifikasi, atau id
+// pembeli sebagai cadangan untuk baris lama yang belum punya peserta.
+// Dipakai modul presence agar kehadiran tidak selalu jatuh ke pembeli.
+func (u *UserTicket) ParticipantUserIDValue() string {
+	if u.ParticipantUserID != nil && *u.ParticipantUserID != "" {
+		return *u.ParticipantUserID
+	}
+	return u.UserID
 }
 
 type User struct {
@@ -62,6 +83,8 @@ type CreateUserTicket struct {
 	OrderID    string `json:"order_id" binding:"required"`
 	TicketID   string `json:"ticket_id" binding:"required"`
 	EventID    string `json:"event_id" binding:"required"`
+	// ParticipantUserID opsional: akun peserta yang cocok dengan user_email.
+	ParticipantUserID *string `json:"participant_user_id"`
 }
 
 type Repository interface {
@@ -71,6 +94,10 @@ type Repository interface {
 	ShowByPublicID(ctx *gin.Context, public_id string) (*UserTicket, error)
 	Index(ctx *gin.Context) ([]*UserTicket, error)
 	IndexByOrderID(ctx *gin.Context, order_id string) ([]*UserTicket, error)
+	// CountByTicketID menghitung tiket terjual (belum dihapus) untuk satu jenis tiket.
+	CountByTicketID(ctx *gin.Context, ticket_id string) (int64, error)
+	// ClaimByEmail mengaitkan tiket yang belum diklaim ke akun dengan email itu.
+	ClaimByEmail(ctx *gin.Context, user_id string, email string) (int64, error)
 }
 
 type Service interface {
@@ -80,6 +107,8 @@ type Service interface {
 	ShowByPublicID(ctx *gin.Context, public_id string) (*UserTicket, error)
 	Index(ctx *gin.Context) ([]*UserTicket, error)
 	IndexByOrderID(ctx *gin.Context, order_id string) ([]*UserTicket, error)
+	CountByTicketID(ctx *gin.Context, ticket_id string) (int64, error)
+	ClaimTicketsByEmail(ctx *gin.Context, user_id string, email string) (int64, error)
 }
 
 type Handler interface {

@@ -2,7 +2,9 @@ package feedback
 
 import (
 	"errors"
+	"mainyuk/internal/apperr"
 	"mainyuk/internal/event"
+	"mainyuk/internal/ratelimit"
 	"mainyuk/internal/user"
 	"time"
 
@@ -24,19 +26,27 @@ func NewService(repository Repository, us user.Service, es event.Service) Servic
 	}
 }
 
-// Register implements Service
+// Create menyimpan masukan dari pengguna yang sedang login.
 func (s *service) Create(c *gin.Context, req *CreateFeedback) (*Feedback, error) {
+	currentUser, ok := user.FromContext(c)
+	if !ok {
+		return nil, apperr.ErrUnauthorized
+	}
+	if !ratelimit.Feedback.Allow(ratelimit.Key(c, currentUser.ID)) {
+		return nil, ratelimit.ErrTooManyRequests
+	}
+
 	event, errEvent := s.EventService.Show(c, req.EventID)
 	if errEvent != nil {
 		return nil, errors.New("EventNotFound")
 	}
-	user, errUser := s.UserService.Show(c, req.UserID)
+	author, errUser := s.UserService.Show(c, currentUser.ID)
 	if errUser != nil {
 		return nil, errors.New("UserNotFound")
 	}
 	feedback := &Feedback{}
 	feedback.ID = uuid.NewString()
-	feedback.UserID = user.ID
+	feedback.UserID = author.ID
 	feedback.EventID = event.ID
 	feedback.Message = req.Message
 	feedback.CreatedAt = time.Now()
@@ -48,9 +58,9 @@ func (s *service) Create(c *gin.Context, req *CreateFeedback) (*Feedback, error)
 	}
 
 	feedback.User = &User{
-		ID:     user.ID,
-		Name:   user.Name,
-		Gender: user.Gender,
+		ID:     author.ID,
+		Name:   author.Name,
+		Gender: author.Gender,
 	}
 
 	return feedback, nil

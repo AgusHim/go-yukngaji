@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type Order struct {
@@ -31,6 +32,21 @@ type Order struct {
 	CreatedAt       time.Time                     `json:"created_at"`
 	UpdatedAt       time.Time                     `json:"-"`
 	DeletedAt       *time.Time                    `json:"-"`
+
+	// Total adalah jumlah yang harus dibayar (tiket + donasi + biaya admin).
+	// Tidak disimpan sebagai kolom; selalu dihitung dari komponennya.
+	Total int `json:"total" gorm:"-"`
+}
+
+// ComputeTotal mengisi Total dari komponen tagihan.
+func (o *Order) ComputeTotal() {
+	o.Total = o.Amount + o.Donation + o.AdminFee
+}
+
+// AfterFind memastikan Total selalu terisi pada hasil query.
+func (o *Order) AfterFind(tx *gorm.DB) error {
+	o.ComputeTotal()
+	return nil
 }
 
 type Event struct {
@@ -59,22 +75,43 @@ type UpdateOrder struct {
 	Status string `json:"status"`
 }
 
+// UserTicket adalah satu peserta dalam permintaan checkout.
+//
+// UserID sengaja tidak ada di sini: pembeli diambil dari identitas server,
+// bukan dari body request. Kolom user_id pada baris user_tickets tetap diisi
+// pembeli untuk kompatibilitas data lama; peserta terverifikasi disimpan
+// terpisah di participant_user_id.
 type UserTicket struct {
 	UserName   string `json:"user_name" binding:"required"`
 	UserEmail  string `json:"user_email" binding:"required"`
 	UserGender string `json:"user_gender" binding:"required"`
 	TicketID   string `json:"ticket_id" binding:"required"`
 	EventID    string `json:"event_id" binding:"required"`
-	UserID     string `json:"user_id" binding:"required"`
 }
 
 type Repository interface {
-	Create(ctx *gin.Context, order *Order) (*Order, error)
+	// CreateWithTickets menyimpan order beserta seluruh tiketnya dalam satu
+	// transaksi, sehingga order tanpa tiket tidak mungkin tersimpan.
+	CreateWithTickets(ctx *gin.Context, order *Order, tickets []*user_ticket.UserTicket) (*Order, error)
 	Show(ctx *gin.Context, id string) (*Order, error)
 	ShowByPublicID(ctx *gin.Context, public_id string, user_id *string) (*Order, error)
 	Index(ctx *gin.Context, user_id *string) ([]*Order, error)
 	Update(ctx *gin.Context, order *Order) (*Order, error)
+	// TransitionStatus memindahkan status secara atomik dari from ke to.
+	// Mengembalikan false bila status tidak lagi from (sudah diubah pihak lain).
+	TransitionStatus(ctx *gin.Context, id string, from string, to string) (bool, error)
 	Participants(ctx *gin.Context, event_id string) ([]*Order, error)
+}
+
+// AutoPoster adalah seam sempit ke feed komunitas, dipenuhi oleh
+// thread.Service.
+//
+// Judul event dikirim sebagai argumen supaya paket ini tidak perlu tahu apa
+// pun tentang aturan feed — dan supaya feed tidak perlu mengimpor balik paket
+// ini. Kegagalannya tidak pernah menggagalkan order yang sudah sah.
+type AutoPoster interface {
+	PostEventRegistration(ctx *gin.Context, userID, orderID, eventTitle string) error
+	RemoveEventRegistration(ctx *gin.Context, orderID string) error
 }
 
 type Service interface {
@@ -84,6 +121,9 @@ type Service interface {
 	Index(ctx *gin.Context) ([]*Order, error)
 	IndexAdmin(ctx *gin.Context) ([]*Order, error)
 	VerifyOrder(ctx *gin.Context, id string, status string) (*Order, error)
+	// SetAutoPoster memasang peniti aktivitas ke feed komunitas. Boleh tidak
+	// dipasang: tanpa itu, order berjalan seperti sebelum Fase 3.
+	SetAutoPoster(poster AutoPoster)
 	Participants(ctx *gin.Context, event_id string) ([]*Order, error)
 }
 

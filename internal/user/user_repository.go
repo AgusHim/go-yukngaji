@@ -40,6 +40,34 @@ func (r *repository) DeleteByID(c *gin.Context, id string) error {
 	return nil
 }
 
+// List membaca akun untuk dashboard pengurus.
+//
+// Penyaringnya sengaja sederhana: pencarian teks pada nama/username/email dan
+// penyaring peran. Pengurutan tidak dapat dipilih pemanggil — urutannya tetap
+// terbaru lebih dulu supaya halaman tidak berpindah-pindah antar permintaan.
+func (r *repository) List(c *gin.Context, search, role string, limit, offset int) ([]*User, error) {
+	users := []*User{}
+
+	query := r.db.Model(&User{}).Where("deleted_at IS NULL")
+	if search != "" {
+		like := "%" + search + "%"
+		query = query.Where("name ILIKE ? OR username ILIKE ? OR email ILIKE ?", like, like, like)
+	}
+	if role != "" {
+		query = query.Where("role = ?", role)
+	}
+
+	err := query.
+		Order("created_at DESC, id DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 func (r *repository) Show(c *gin.Context, id string) (*User, error) {
 	user := &User{}
 	err := r.db.Preload("Province").Preload("District").Preload("SubDistrict").Where("id = ?", id).Where("deleted_at IS NULL").Order("created_at DESC").First(&user).Error

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"mainyuk/internal/user"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -54,6 +55,35 @@ func (r *repository) FindByUserTicketID(c *gin.Context, id string, eventID strin
 	return presence, nil
 }
 
+// FindByUserTicketAndDate mencari baris check-in tiket pada satu tanggal.
+// Ini jalur cepat idempotensi; unique index tetap penjamin akhirnya.
+func (r *repository) FindByUserTicketAndDate(c *gin.Context, userTicketID string, checkInDate time.Time) (*Presence, error) {
+	presence := &Presence{}
+	err := r.db.Preload("User").Preload("Event").
+		Where("user_ticket_id = ?", userTicketID).
+		Where("check_in_date = ?", checkInDate).
+		Where("deleted_at IS NULL").
+		First(&presence).Error
+	if err != nil {
+		return nil, err
+	}
+	return presence, nil
+}
+
+// CountByUserTicket menghitung semua check-in tiket, dipakai untuk menentukan
+// apakah ini check-in pertama (baru menaikkan event.participant).
+func (r *repository) CountByUserTicket(c *gin.Context, userTicketID string) (int64, error) {
+	var count int64
+	err := r.db.Model(&Presence{}).
+		Where("user_ticket_id = ?", userTicketID).
+		Where("deleted_at IS NULL").
+		Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (r *repository) Index(c *gin.Context) ([]*Presence, error) {
 	var presences []*Presence
 	tx := r.db
@@ -65,15 +95,9 @@ func (r *repository) Index(c *gin.Context) ([]*Presence, error) {
 	}
 
 	if strings.Contains(c.FullPath(), "user_api/presence") {
-		u, exists := c.Get("currentUser")
-		if !exists {
-			return nil, errors.New("NotAuthrized")
-		}
-
-		currentUser, ok := u.(user.User)
-
+		currentUser, ok := user.FromContext(c)
 		if !ok {
-			return nil, errors.New("FailedParsing: current user")
+			return nil, errors.New("NotAuthrized")
 		}
 
 		query.Where("user_id = ?", currentUser.ID)

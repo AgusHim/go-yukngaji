@@ -37,6 +37,98 @@ type User struct {
 	DeletedAt       *time.Time     `json:"-" `
 }
 
+// ContextKey adalah kunci gin.Context tempat middleware menyimpan user aktif.
+const ContextKey = "currentUser"
+
+// FromContext mengambil user aktif yang dipasang middleware autentikasi.
+// Handler harus memakai ini alih-alih mempercayai user_id dari body request.
+func FromContext(c *gin.Context) (*User, bool) {
+	v, exists := c.Get(ContextKey)
+	if !exists {
+		return nil, false
+	}
+	u, ok := v.(User)
+	if !ok {
+		return nil, false
+	}
+	return &u, true
+}
+
+// AccountResponse adalah kontrak publik data akun. Password dan GoogleID
+// sengaja tidak disertakan agar data internal tidak ikut terkirim ke client.
+type AccountResponse struct {
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	Username        string         `json:"username"`
+	Gender          string         `json:"gender"`
+	BirthDate       time.Time      `json:"birth_date"`
+	Age             int            `json:"age"`
+	Phone           string         `json:"phone"`
+	Email           *string        `json:"email"`
+	Instagram       string         `json:"instagram"`
+	Address         string         `json:"address"`
+	Role            string         `json:"role"`
+	Activity        *string        `json:"activity"`
+	Source          *string        `json:"source"`
+	ImageUrl        *string        `json:"image_url"`
+	ProvinceCode    string         `json:"province_code"`
+	DistrictCode    string         `json:"district_code"`
+	SubDistrictCode string         `json:"sub_district_code"`
+	Province        *region.Region `json:"province"`
+	District        *region.Region `json:"district"`
+	SubDistrict     *region.Region `json:"sub_district"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+// ToAccountResponse mengubah model internal menjadi DTO publik.
+func ToAccountResponse(u *User) *AccountResponse {
+	if u == nil {
+		return nil
+	}
+	return &AccountResponse{
+		ID:              u.ID,
+		Name:            u.Name,
+		Username:        u.Username,
+		Gender:          u.Gender,
+		BirthDate:       u.BirthDate,
+		Age:             u.Age,
+		Phone:           u.Phone,
+		Email:           u.Email,
+		Instagram:       u.Instagram,
+		Address:         u.Address,
+		Role:            u.Role,
+		Activity:        u.Activity,
+		Source:          u.Source,
+		ImageUrl:        u.ImageUrl,
+		ProvinceCode:    u.ProvinceCode,
+		DistrictCode:    u.DistrictCode,
+		SubDistrictCode: u.SubDistrictCode,
+		Province:        u.Province,
+		District:        u.District,
+		SubDistrict:     u.SubDistrict,
+		CreatedAt:       u.CreatedAt,
+		UpdatedAt:       u.UpdatedAt,
+	}
+}
+
+// TicketClaimer mengaitkan tiket rombongan yang belum diklaim ke akun
+// berdasarkan email peserta. Diimplementasikan oleh user_ticket.Service.
+// Dipisah sebagai interface agar paket user tidak perlu mengimpor user_ticket.
+type TicketClaimer interface {
+	ClaimTicketsByEmail(c *gin.Context, userID string, email string) (int64, error)
+}
+
+// ProfileRewarder memberi reward "profil lengkap". Diimplementasikan oleh
+// gamification.Service. Dipisah sebagai interface agar paket user tidak perlu
+// mengimpor gamification.
+//
+// Implementasinya wajib idempoten: hook ini dipanggil setiap kali profil
+// diperbarui, dan hanya pemberian pertama yang boleh menghasilkan XP.
+type ProfileRewarder interface {
+	OnProfileCompleted(c *gin.Context, userID string) error
+}
+
 type Login struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -86,6 +178,9 @@ type Repository interface {
 	Show(c *gin.Context, id string) (*User, error)
 	Update(c *gin.Context, id string, user *User) (*User, error)
 	ShowByGoogleID(c *gin.Context, id string) (*User, error)
+	// List membaca satu halaman akun. search mencocokkan nama, username, atau
+	// email; role menyaring peran. Keduanya kosong berarti tanpa penyaring.
+	List(c *gin.Context, search, role string, limit, offset int) ([]*User, error)
 }
 
 type Service interface {
@@ -98,6 +193,18 @@ type Service interface {
 	CreateRanger(c *gin.Context, user *CreateUser) (*User, error)
 	Update(c *gin.Context, id string, user *CreateUser) (*User, error)
 	AuthGoogleCallback(c *gin.Context, userInfo *oauth2api.Userinfo) (*User, error)
+	// EnsureMemberByEmail mengembalikan akun dengan email tersebut, atau
+	// membuat akun anggota baru bila belum ada. Dipakai alur OTP.
+	EnsureMemberByEmail(c *gin.Context, email string) (*User, error)
+	// SetTicketClaimer memasang pengklaim tiket rombongan. Best-effort:
+	// kegagalan klaim tidak boleh menggagalkan pendaftaran/login.
+	SetTicketClaimer(tc TicketClaimer)
+	// SetProfileRewarder memasang pemberi reward profil lengkap. Best-effort:
+	// kegagalan pemberian XP tidak boleh menggagalkan penyimpanan profil.
+	SetProfileRewarder(pr ProfileRewarder)
+	// List mengembalikan satu halaman akun dalam bentuk kontrak publik.
+	// Mengembalikan has_more, bukan jumlah total, sama seperti daftar lain.
+	List(c *gin.Context, search, role string, page, perPage int) ([]*AccountResponse, bool, error)
 }
 
 type Handler interface {
@@ -106,6 +213,8 @@ type Handler interface {
 	UpdateByAdmin(c *gin.Context)
 	UpdateAuth(c *gin.Context)
 	Show(c *gin.Context)
+	Me(c *gin.Context)
 	AuthGoogleLogin(c *gin.Context)
 	AuthGoogleCallback(c *gin.Context)
+	List(c *gin.Context)
 }

@@ -8,7 +8,10 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
+
+	"mainyuk/internal/origins"
 
 	"github.com/gorilla/websocket"
 )
@@ -27,11 +30,14 @@ const (
 	maxMessageSize = 512
 )
 
+// upgrader menolak koneksi dari origin yang tidak terdaftar. Sebelumnya
+// CheckOrigin selalu true, sehingga situs mana pun bisa membuka koneksi
+// WebSocket atas nama pengunjung.
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		return origins.IsAllowed(r.Header.Get("Origin"))
 	},
 }
 
@@ -149,32 +155,16 @@ func (c *Client) writePump() {
 	}
 }
 
-// serveWs handles websocket requests from the peer.
-func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
-	queryParams := r.URL.Query()
-	userID := queryParams.Get("user_id")
-	username := queryParams.Get("username")
-	roomID := queryParams.Get("room_id")
-
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println(err)
-		return
+// TokenFromRequest mengambil token dari query `token` atau header
+// Authorization. WebSocket tidak bisa mengirim header kustom saat handshake
+// dari browser, jadi query adalah jalur utamanya.
+func TokenFromRequest(r *http.Request) string {
+	if token := strings.TrimSpace(r.URL.Query().Get("token")); token != "" {
+		return token
 	}
-
-	connectedAt := time.Now()
-
-	client := &Client{
-		UserID:   userID,
-		Username: username,
-		RoomID:   roomID,
-		hub:      hub, conn: conn, send: make(chan *Message, 5),
-		ConnectAt: connectedAt,
+	header := r.Header.Get("Authorization")
+	if parts := strings.SplitN(header, " ", 2); len(parts) == 2 && strings.EqualFold(parts[0], "Bearer") {
+		return strings.TrimSpace(parts[1])
 	}
-	client.hub.register <- client
-
-	// Allow collection of memory referenced by the caller by doing all work in
-	// new goroutines.
-	go client.writePump()
-	go client.readPump()
+	return ""
 }

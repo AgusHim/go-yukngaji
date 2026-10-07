@@ -98,3 +98,13 @@ func (r *repository) Update(c *gin.Context, id string, event *Event) (*Event, er
 	}
 	return event, nil
 }
+
+// IncrementParticipant menaikkan kolom participant langsung di database.
+// Menghindari pola baca-ubah-tulis yang kehilangan kenaikan saat beberapa
+// pemindaian terjadi bersamaan, dan tidak menulis ulang kolom lain.
+func (r *repository) IncrementParticipant(c *gin.Context, id string) error {
+	return r.db.Model(&Event{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"participant": gorm.Expr("participant + 1"),
+		"updated_at":  time.Now(),
+	}).Error
+}
