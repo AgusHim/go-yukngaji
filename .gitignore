@@ -1,2 +1,5 @@
 .env
 .env.prod
+
+# Cadangan pg_dump dari script.sh memuat data produksi.
+backups/
