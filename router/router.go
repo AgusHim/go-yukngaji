@@ -11,6 +11,7 @@ import (
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/fundraising"
 	"mainyuk/internal/gamification"
+	"mainyuk/internal/instagram"
 	"mainyuk/internal/like"
 	"mainyuk/internal/metrics"
 	"mainyuk/internal/mission"
@@ -64,6 +65,7 @@ func InitRouter(
 	threadHandler thread.Handler,
 	shopHandler shop.Handler,
 	metricsHandler metrics.Handler,
+	instagramHandler instagram.Handler,
 ) {
 	mode := os.Getenv("GIN_MODE")
 	gin.SetMode(mode)
@@ -338,6 +340,21 @@ func InitRouter(
 	// angka: tidak ada id akun, nama, maupun email. Izinnya metrics:view,
 	// dipegang admin dan pj.
 	admin_api.GET("/metrics", authMiddleware.AuthPJ, metricsHandler.Show)
+
+	/* Dinding komunitas Instagram */
+	// Dinding publik untuk landing page. Isinya hanya yang sudah diterbitkan
+	// pengurus, jadi tamu boleh membacanya.
+	api.GET("/instagram/posts", authMiddleware.AuthOptionalUser, instagramHandler.ListPublished)
+
+	// Pengurus. AuthPJ meloloskan admin dan pj — himpunan yang sama persis
+	// dengan pemegang instagram:manage; izinnya tetap diperiksa lagi di handler.
+	admin_api.GET("/instagram/posts", authMiddleware.AuthPJ, instagramHandler.ListAll)
+	admin_api.POST("/instagram/posts", authMiddleware.AuthPJ, instagramHandler.Create)
+	admin_api.PUT("/instagram/posts/:id", authMiddleware.AuthPJ, instagramHandler.Update)
+	admin_api.DELETE("/instagram/posts/:id", authMiddleware.AuthPJ, instagramHandler.Delete)
+	// Sinkronisasi manual dari Graph API. Segmennya "sync", bukan ":id", jadi
+	// tidak ada bentrok statis-lawan-parameter dengan /instagram/posts/:id.
+	admin_api.POST("/instagram/sync", authMiddleware.AuthPJ, instagramHandler.Sync)
 }
 
 func Start(addr string) error {

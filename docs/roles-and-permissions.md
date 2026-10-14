@@ -34,6 +34,7 @@ Akun baru ditulis dengan `authz.RoleMember` (`user`). Baris lama tetap
 | `funds:manage` | ya | ya | tidak | tidak |
 | `product:manage` | ya | ya | tidak | tidak |
 | `moderation:moderate` | ya | ya | ya | tidak |
+| `instagram:manage` | ya | ya | tidak | tidak |
 
 Moderator **belum** menjadi role tersendiri. Saat ini izin moderasi melekat
 pada ranger dan pengurus. Bila nanti ditambahkan, langkahnya adalah menambah
@@ -109,6 +110,8 @@ Aturan yang berlaku sejak Fase 0:
 | `/admin_api/polls/...` | `AuthAdmin` |
 | `POST /user_api/orders` | `AuthUser` |
 | `PUT /admin_api/orders/:id/verify` | `AuthAdmin` |
+| `GET /api/instagram/posts` | `AuthOptionalUser` |
+| `/admin_api/instagram/...` | `AuthPJ` + `instagram:manage` |
 | `GET /ws/events/:id` | token di query (opsional) |
 
 ## Akun aktif

@@ -171,6 +171,7 @@ DTO, ubah keduanya.
 | `internal/region/region.go` | `web/src/types/Region.ts` |
 | `internal/comment/comment.go` | `web/src/types/comment.ts` |
 | `internal/like/like.go` | `web/src/types/like.ts` |
+| `internal/instagram/instagram.go` | `web/src/types/instagram.ts` |
 
 Kesamaan nama tidak dijamin. `payment_method` menjadi `PaymentMethod.ts`
 (huruf besar), `region` menjadi `Region.ts`, sedangkan `user_ticket` tetap
@@ -1003,6 +1004,108 @@ Rate limit keputusan pengurus (`confirm`/`reject`/`refund`/`fulfill`):
 **Riwayat audit** di sini memuat `product.create/update/status/delete`,
 `variant.create/update/delete`, `stock.adjust`, dan
 `shop_order.confirm/reject/refund/cancel/fulfill/shipping`.
+
+---
+
+## Dinding komunitas Instagram
+
+Modul: `internal/instagram/`. Migrasi: `sql/migrations/0013_instagram_posts.up.sql`.
+Tabel: `instagram_posts`.
+
+Mengisi section "Kegiatan Bersama YN Solo" di landing page. Dua jalur masuknya:
+kurasi manual pengurus, dan sinkronisasi Graph API. Tanpa
+`INSTAGRAM_ACCESS_TOKEN` jalur kedua mati dan hanya jalur pertama yang jalan —
+lihat `docs/instagram-graph-api.md`.
+
+```ts
+type InstagramPost = {
+  id: string;
+  ig_media_id: string | null;      // null untuk baris kurasi manual
+  source: "manual" | "sync";
+  username: string;                // tanpa '@'
+  caption: string | null;
+  media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM" | null;
+  media_url: string | null;
+  thumbnail_url: string | null;    // VIDEO: yang ditampilkan, bukan media_url
+  permalink: string | null;
+  like_count: number | null;
+  comments_count: number | null;
+  posted_at: string | null;        // RFC3339 dengan offset
+  is_published: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+};
+
+type SyncResult = {
+  fetched: number;
+  created: number;
+  updated: number;
+  skipped: number;
+};
+```
+
+`created_by` dan `deleted_at` bertag `json:"-"`, jadi **tidak pernah** muncul di
+JSON.
+
+Nilai yang sah:
+
+| Bidang | Nilai |
+| --- | --- |
+| `source` | `manual` (dikurasi pengurus), `sync` (dari Graph API) |
+| `media_type` | `IMAGE`, `VIDEO`, `CAROUSEL_ALBUM`, atau `null` |
+
+**`like_count` dan `comments_count` boleh `null`, dan `null` berarti "tidak
+diketahui" — bukan nol.** Klien **wajib menyembunyikan seluruh baris angka**
+saat keduanya `null`, dan menyembunyikan angka yang `null` satu per satu saat
+hanya salah satunya kosong. Jangan pernah menampilkan `0` sebagai ganti `null`:
+nol asli dari Instagram tetap dikirim sebagai `0` dan tetap ditampilkan.
+
+Endpoint `/tags` Graph API tidak dimintai angka like/komentar, jadi postingan
+anggota yang masuk lewat jalur itu biasanya membawa `null` di kedua kolom.
+
+| Endpoint | Amplop |
+| --- | --- |
+| `GET /api/instagram/posts` | `{"posts": [InstagramPost]}` — hanya `is_published` |
+| `GET /admin_api/instagram/posts` | `{"posts": [InstagramPost]}` — termasuk yang belum terbit |
+| `POST /admin_api/instagram/posts` | **201** `{"post": InstagramPost}` |
+| `PUT /admin_api/instagram/posts/:id` | `{"post": InstagramPost}` |
+| `DELETE /admin_api/instagram/posts/:id` | `{"message":"Postingan dihapus"}` |
+| `POST /admin_api/instagram/sync` | `{"sync": SyncResult}` |
+
+Semua endpoint `admin_api/instagram*` memerlukan izin `instagram:manage`
+(admin dan pj), sama seperti middleware `AuthPJ`-nya.
+
+Urutan `GET /api/instagram/posts`: `sort_order ASC`, lalu `posted_at DESC NULLS
+LAST`, lalu `created_at DESC`. Tanpa pagination.
+
+Body `POST`/`PUT` (`CreatePost`/`UpdatePost`): `username` dan `media_url` wajib
+saat membuat; `caption`, `media_type`, `thumbnail_url`, `permalink`,
+`like_count`, `comments_count`, `posted_at`, `is_published`, `sort_order`
+opsional. Pada `PUT` seluruh bidang opsional — yang tidak dikirim tidak diubah.
+`created_by` diisi **server-side** dari token, tidak pernah dari body.
+
+`posted_at` adalah RFC3339 dengan offset eksplisit. `like_count` dan
+`comments_count` tidak boleh negatif.
+
+**Sinkronisasi.** `POST /admin_api/instagram/sync` menarik `/<IG_ID>/media`
+dan `/<IG_ID>/tags`, maksimal 5 halaman per endpoint. Tanpa kredensial → 400
+`InvalidRequest: sinkronisasi Instagram belum dikonfigurasi (isi
+INSTAGRAM_ACCESS_TOKEN dan INSTAGRAM_IG_USER_ID)` dan **nol baris tertulis**.
+
+Sinkronisasi **tidak pernah**:
+
+- menerbitkan apa pun — baris baru selalu `is_published = false`;
+- menimpa `is_published`, `sort_order`, atau `created_by` — keputusan pengurus
+  selamat dari sync berikutnya;
+- menghapus baris yang hilang dari Instagram.
+
+Baris dengan `ig_media_id` yang sama diperbarui di tempat (dikunci lewat
+`pg_advisory_xact_lock`), bukan digandakan. `skipped` menghitung item tanpa
+`id` dari Graph API.
+
+Backend tidak punya penjadwal; sync dipicu tombol di dashboard atau cron
+eksternal yang memanggil endpoint ini dengan JWT pengurus.
 
 ---
 

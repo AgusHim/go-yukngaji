@@ -13,6 +13,7 @@ import (
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/fundraising"
 	"mainyuk/internal/gamification"
+	"mainyuk/internal/instagram"
 	"mainyuk/internal/like"
 	"mainyuk/internal/metrics"
 	"mainyuk/internal/mission"
@@ -82,6 +83,7 @@ func TestInitRouterTidakPanik(t *testing.T) {
 		thread.NewHandler(nil),
 		shop.NewHandler(nil),
 		metrics.NewHandler(nil),
+		instagram.NewHandler(nil),
 	)
 
 	if r == nil {
@@ -123,6 +125,7 @@ func TestRouteFase1Terdaftar(t *testing.T) {
 		thread.NewHandler(nil),
 		shop.NewHandler(nil),
 		metrics.NewHandler(nil),
+		instagram.NewHandler(nil),
 	)
 
 	registered := map[string]bool{}
@@ -201,6 +204,7 @@ func TestRouteFase2Terdaftar(t *testing.T) {
 		thread.NewHandler(nil),
 		shop.NewHandler(nil),
 		metrics.NewHandler(nil),
+		instagram.NewHandler(nil),
 	)
 
 	registered := map[string]bool{}
@@ -283,6 +287,7 @@ func TestRouteFase3Terdaftar(t *testing.T) {
 		thread.NewHandler(nil),
 		shop.NewHandler(nil),
 		metrics.NewHandler(nil),
+		instagram.NewHandler(nil),
 	)
 
 	registered := map[string]bool{}
@@ -368,6 +373,7 @@ func TestRouteFase4Terdaftar(t *testing.T) {
 		thread.NewHandler(nil),
 		shop.NewHandler(nil),
 		metrics.NewHandler(nil),
+		instagram.NewHandler(nil),
 	)
 
 	registered := map[string]bool{}
@@ -459,6 +465,7 @@ func TestRouteLintasModulTerdaftar(t *testing.T) {
 		thread.NewHandler(nil),
 		shop.NewHandler(nil),
 		metrics.NewHandler(nil),
+		instagram.NewHandler(nil),
 	)
 
 	registered := map[string]bool{}
@@ -483,6 +490,86 @@ func TestRouteLintasModulTerdaftar(t *testing.T) {
 		terbuka := "GET /api" + strings.TrimPrefix(route, "GET /admin_api")
 		if registered[terbuka] {
 			t.Errorf("route pengurus bocor ke grup publik: %s", terbuka)
+		}
+	}
+}
+
+// TestRouteInstagramTerdaftar memastikan dinding komunitas Instagram terpasang
+// pada grup yang benar.
+//
+// Yang paling mudah salah adalah grupnya: menaruh tulis atau sync di /api akan
+// membukanya untuk siapa pun tanpa peringatan apa pun. Dinding baca sengaja
+// boleh diakses tamu, dan itu satu-satunya route instagram di grup publik.
+func TestRouteInstagramTerdaftar(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	authMiddleware := auth.NewMiddleware(nil)
+	InitRouter(
+		authMiddleware,
+		user.NewHandler(nil),
+		event.NewHandler(nil),
+		divisi.NewHandler(nil),
+		presence.NewHandler(nil),
+		comment.NewHandler(nil),
+		like.NewHandler(nil),
+		feedback.NewHandler(nil),
+		ws.NewHandler(ws.NewHub(), nil),
+		agenda.NewHandler(nil),
+		ranger.NewHandler(nil),
+		ranger_presence.NewHandler(nil),
+		order.NewHandler(nil),
+		ticket.NewHandler(nil),
+		user_ticket.NewHandler(nil),
+		payment_method.NewHandler(nil),
+		region.NewHandler(nil),
+		otp.NewHandler(nil),
+		poll.NewHandler(nil),
+		community.NewHandler(nil),
+		gamification.NewHandler(nil),
+		mission.NewHandler(nil),
+		fundraising.NewHandler(nil),
+		thread.NewHandler(nil),
+		shop.NewHandler(nil),
+		metrics.NewHandler(nil),
+		instagram.NewHandler(nil),
+	)
+
+	registered := map[string]bool{}
+	for _, route := range r.Routes() {
+		registered[route.Method+" "+route.Path] = true
+	}
+
+	want := []string{
+		"GET /api/instagram/posts",
+		"GET /admin_api/instagram/posts",
+		"POST /admin_api/instagram/posts",
+		"PUT /admin_api/instagram/posts/:id",
+		"DELETE /admin_api/instagram/posts/:id",
+		"POST /admin_api/instagram/sync",
+	}
+
+	for _, route := range want {
+		if !registered[route] {
+			t.Errorf("route tidak terdaftar: %s", route)
+		}
+	}
+
+	// Dinding baca dan dinding pengurus berbagi path yang sama di grup berbeda
+	// prefiks; keduanya harus tetap ada.
+	if !registered["GET /api/instagram/posts"] || !registered["GET /admin_api/instagram/posts"] {
+		t.Error("dinding publik dan dinding pengurus harus sama-sama terdaftar")
+	}
+
+	// Penulisan dan sinkronisasi tidak boleh ada di grup terbuka.
+	terlarang := []string{
+		"POST /api/instagram/posts",
+		"PUT /api/instagram/posts/:id",
+		"DELETE /api/instagram/posts/:id",
+		"POST /api/instagram/sync",
+	}
+	for _, route := range terlarang {
+		if registered[route] {
+			t.Errorf("route pengurus bocor ke grup publik: %s", route)
 		}
 	}
 }

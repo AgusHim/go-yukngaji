@@ -35,26 +35,31 @@ const (
 	// karena daftar itu memuat data pribadi (email, telepon, alamat),
 	// sedangkan mengubah akun adalah tindakan lain sama sekali.
 	PermissionUsersView Permission = "users:view"
+	// PermissionInstagramManage mengelola dinding komunitas Instagram:
+	// kurasi postingan dan menjalankan sinkronisasi Graph API.
+	PermissionInstagramManage Permission = "instagram:manage"
 )
 
 // rolePermissions memetakan role ke izin yang dimilikinya.
 // Role yang tidak terdaftar tidak memiliki izin apa pun.
 var rolePermissions = map[string]map[Permission]bool{
 	RoleAdmin: {
-		PermissionMissionManage: true,
-		PermissionFundsManage:   true,
-		PermissionProductManage: true,
-		PermissionModerate:      true,
-		PermissionMetricsView:   true,
-		PermissionUsersView:     true,
+		PermissionMissionManage:   true,
+		PermissionFundsManage:     true,
+		PermissionProductManage:   true,
+		PermissionModerate:        true,
+		PermissionMetricsView:     true,
+		PermissionUsersView:       true,
+		PermissionInstagramManage: true,
 	},
 	RolePJ: {
-		PermissionMissionManage: true,
-		PermissionFundsManage:   true,
-		PermissionProductManage: true,
-		PermissionModerate:      true,
-		PermissionMetricsView:   true,
-		PermissionUsersView:     true,
+		PermissionMissionManage:   true,
+		PermissionFundsManage:     true,
+		PermissionProductManage:   true,
+		PermissionModerate:        true,
+		PermissionMetricsView:     true,
+		PermissionUsersView:       true,
+		PermissionInstagramManage: true,
 	},
 	RoleRanger: {
 		PermissionModerate: true,

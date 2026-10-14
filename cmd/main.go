@@ -13,6 +13,7 @@ import (
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/fundraising"
 	"mainyuk/internal/gamification"
+	"mainyuk/internal/instagram"
 	"mainyuk/internal/like"
 	"mainyuk/internal/metrics"
 	"mainyuk/internal/mission"
@@ -200,6 +201,19 @@ func main() {
 	metricsService := metrics.NewService(metricsRepository)
 	metricsHandler := metrics.NewHandler(metricsService)
 
+	// Dinding komunitas Instagram. Client Graph hanya dibuat bila token dan IG
+	// user id tersedia; tanpa keduanya NewGraphClient mengembalikan nil dan
+	// sinkronisasi dijawab "belum dikonfigurasi", sementara dinding tetap jalan
+	// dengan postingan kurasi admin.
+	instagramClient := instagram.NewGraphClient(
+		os.Getenv("INSTAGRAM_ACCESS_TOKEN"),
+		os.Getenv("INSTAGRAM_IG_USER_ID"),
+		os.Getenv("INSTAGRAM_GRAPH_VERSION"),
+	)
+	instagramRepository := instagram.NewRepository(db)
+	instagramService := instagram.NewService(instagramRepository, instagramClient)
+	instagramHandler := instagram.NewHandler(instagramService)
+
 	// XP profil diberikan setelah profil tersimpan, XP check-in setelah
 	// pemindaian tiket berhasil. Keduanya best-effort.
 	userService.SetProfileRewarder(gamificationService)
@@ -245,6 +259,7 @@ func main() {
 		threadHandler,
 		shopHandler,
 		metricsHandler,
+		instagramHandler,
 	)
 
 	// output current time zone
