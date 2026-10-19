@@ -30,6 +30,8 @@ type Episode struct {
 	DeletedAt   *time.Time `json:"-"`
 }
 
+func (Episode) TableName() string { return "event_episodes" }
+
 type Content struct {
 	ID          string     `json:"id"`
 	EpisodeID   string     `json:"episode_id"`
@@ -43,6 +45,8 @@ type Content struct {
 	UpdatedAt   time.Time  `json:"-"`
 	DeletedAt   *time.Time `json:"-"`
 }
+
+func (Content) TableName() string { return "event_episode_contents" }
 
 type CreateEpisode struct {
 	EventID     string  `json:"event_id" binding:"required"`
