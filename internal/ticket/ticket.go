@@ -12,6 +12,7 @@ type Ticket struct {
 	Name          string     `json:"name" binding:"required"`
 	Description   string     `json:"description" binding:"required"`
 	Price         int        `json:"price" binding:"required"`
+	OriginalPrice *int       `json:"original_price"`
 	EventID       string     `json:"event_id" binding:"required"`
 	StartAt       time.Time  `json:"start_at" binding:"required"`
 	EndAt         time.Time  `json:"end_at" binding:"required"`
@@ -33,6 +34,7 @@ type CreateTicket struct {
 	Name          string   `json:"name" binding:"required"`
 	Description   string   `json:"description" binding:"required"`
 	Price         int      `json:"price"`
+	OriginalPrice *int     `json:"original_price"`
 	EventID       string   `json:"event_id" binding:"required"`
 	StartAt       string   `json:"start_at" binding:"required"`
 	EndAt         string   `json:"end_at" binding:"required"`

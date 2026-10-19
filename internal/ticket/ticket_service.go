@@ -27,6 +27,10 @@ func (s *service) Create(c *gin.Context, req *CreateTicket) (*Ticket, error) {
 	ticket.Name = req.Name
 	ticket.Description = req.Description
 	ticket.Price = req.Price
+	if err := validateOriginalPrice(req.Price, req.OriginalPrice); err != nil {
+		return nil, err
+	}
+	ticket.OriginalPrice = req.OriginalPrice
 	ticket.EventID = req.EventID
 	ticket.PaxMultiplier = req.PaxMultiplier
 	ticket.MinOrderPax = req.MinOrderPax
@@ -84,6 +88,10 @@ func (s *service) Update(c *gin.Context, id string, req *CreateTicket) (*Ticket,
 	ticket.Name = req.Name
 	ticket.Description = req.Description
 	ticket.Price = req.Price
+	if err := validateOriginalPrice(req.Price, req.OriginalPrice); err != nil {
+		return nil, err
+	}
+	ticket.OriginalPrice = req.OriginalPrice
 	ticket.EventID = req.EventID
 	ticket.PaxMultiplier = req.PaxMultiplier
 	ticket.MinOrderPax = req.MinOrderPax
@@ -133,6 +141,13 @@ func validateAccess(mode string, episodeIDs []string) error {
 	}
 	if mode == "selected" && len(episodeIDs) == 0 {
 		return fmt.Errorf("pilih minimal satu episode untuk tiket selected")
+	}
+	return nil
+}
+
+func validateOriginalPrice(price int, originalPrice *int) error {
+	if originalPrice != nil && *originalPrice <= price {
+		return fmt.Errorf("harga sebelum diskon harus lebih besar dari harga tiket")
 	}
 	return nil
 }
