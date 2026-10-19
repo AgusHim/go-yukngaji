@@ -45,6 +45,10 @@ func (r *repository) Show(c *gin.Context, id string) (*Ticket, error) {
 	if err != nil {
 		return nil, err
 	}
+	var episodeIDs []string
+	if err := r.db.Table("ticket_episode_access").Where("ticket_id = ?", id).Pluck("episode_id", &episodeIDs).Error; err == nil {
+		ticket.EpisodeIDs = episodeIDs
+	}
 	return ticket, nil
 }
 
@@ -62,6 +66,13 @@ func (r *repository) Index(c *gin.Context) ([]*Ticket, error) {
 	err := query.Where("deleted_at IS NULL").Find(&tickets).Error
 	if err != nil {
 		return nil, err
+	}
+	for _, ticket := range tickets {
+		var episodeIDs []string
+		if err := r.db.Table("ticket_episode_access").Where("ticket_id = ?", ticket.ID).Pluck("episode_id", &episodeIDs).Error; err != nil {
+			return nil, err
+		}
+		ticket.EpisodeIDs = episodeIDs
 	}
 	return tickets, nil
 }

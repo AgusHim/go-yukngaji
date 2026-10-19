@@ -102,6 +102,7 @@ func InitRouter(
 
 	api.POST("/events", authMiddleware.AuthAdmin, eventHandler.Create)
 	api.GET("/events/:slug", eventHandler.Show)
+	api.GET("/event_episodes", ticketHandler.ListEpisodes)
 	api.GET("/events/code/:code", eventHandler.ShowByCode)
 	api.GET("/events", eventHandler.Index)
 	api.PUT("/events/:id", authMiddleware.AuthAdmin, eventHandler.Create)
@@ -155,6 +156,14 @@ func InitRouter(
 	admin_api.POST("/tickets", authMiddleware.AuthAdmin, ticketHandler.Create)
 	admin_api.PUT("/tickets/:id", authMiddleware.AuthAdmin, ticketHandler.Update)
 	admin_api.DELETE("/tickets/:id", authMiddleware.AuthAdmin, ticketHandler.Delete)
+	admin_api.GET("/event_episodes", authMiddleware.AuthAdmin, func(c *gin.Context) { c.Set("include_unpublished", true); ticketHandler.ListEpisodes(c) })
+	admin_api.POST("/event_episodes", authMiddleware.AuthAdmin, ticketHandler.CreateEpisode)
+	admin_api.PUT("/event_episodes/:id", authMiddleware.AuthAdmin, ticketHandler.UpdateEpisode)
+	admin_api.DELETE("/event_episodes/:id", authMiddleware.AuthAdmin, ticketHandler.DeleteEpisode)
+	admin_api.POST("/event_episode_contents", authMiddleware.AuthAdmin, ticketHandler.CreateContent)
+	admin_api.PUT("/event_episode_contents/:id", authMiddleware.AuthAdmin, ticketHandler.UpdateContent)
+	admin_api.DELETE("/event_episode_contents/:id", authMiddleware.AuthAdmin, ticketHandler.DeleteContent)
+	user_api.GET("/events/:slug/learning", authMiddleware.AuthUser, ticketHandler.Learning)
 
 	/* Orders */
 	user_api.GET("/orders", authMiddleware.AuthUser, orderHandler.Index)
