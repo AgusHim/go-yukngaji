@@ -268,5 +268,7 @@ func main() {
 	fmt.Println(time.Now().Format("2006-01-02T15:04:05.000 MST"))
 
 	host := os.Getenv("HOST")
-	router.Start(host)
+	if err := router.Start(host); err != nil {
+		log.Fatalf("HTTP server stopped: %v", err)
+	}
 }

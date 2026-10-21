@@ -25,6 +25,7 @@ import (
 	"mainyuk/internal/ranger_presence"
 	"mainyuk/internal/region"
 	"mainyuk/internal/shop"
+	"mainyuk/internal/shopee"
 	"mainyuk/internal/thread"
 	"mainyuk/internal/ticket"
 	"mainyuk/internal/user"
@@ -78,8 +79,12 @@ func InitRouter(
 	config.AllowOrigins = origins.Allowed()
 	config.AllowCredentials = origins.AllowsCredentials()
 	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
-	config.AllowHeaders = []string{"Authorization", "Content-Type"}
+	config.AllowHeaders = []string{"Authorization", "Content-Type", "X-API-Key"}
 	r.Use(cors.New(config))
+
+	// Service legacy ShopeePay/QRIS tetap berada di root agar integrasi lama
+	// tidak perlu mengganti URL saat server.js dipensiunkan.
+	shopee.Register(r, shopee.NewFromEnv())
 
 	api := r.Group("api")
 	user_api := r.Group("user_api")
