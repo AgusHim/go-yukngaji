@@ -957,6 +957,57 @@ func (s *service) ConfirmOrder(c *gin.Context, id string, req *ConfirmOrderReque
 	return s.orderViewByID(c, order.ID, true)
 }
 
+// ConfirmShopeePayment menyelesaikan pesanan dari mutasi yang telah diklaim.
+// ConfirmPayment menjaga perubahan status, stok, movement, dan pelepasan
+// reservasi di dalam satu transaksi database.
+func (s *service) ConfirmShopeePayment(c *gin.Context, id string, paidAmount int64, reference string) error {
+	value, err := s.findOrderByID(c, id)
+	if err != nil {
+		return err
+	}
+	if value.PaymentStatus == PaymentPaid {
+		return s.grantReward(c, value)
+	}
+	if value.PaymentStatus != PaymentPending || value.FulfillmentStatus == FulfillmentCancelled || paidAmount < value.Total || strings.TrimSpace(reference) == "" {
+		return ErrOrderAlreadyDecided
+	}
+	now := time.Now()
+	changed, err := s.Repository.ConfirmPayment(c, value.ID, map[string]interface{}{
+		"paid_amount": paidAmount, "payment_reference": strings.TrimSpace(reference), "confirmed_at": now,
+	}, "")
+	if err != nil {
+		if errors.Is(err, errStockShortage) {
+			return ErrStockShortage
+		}
+		return err
+	}
+	updated, err := s.findOrderByID(c, value.ID)
+	if err != nil {
+		return err
+	}
+	if !changed && updated.PaymentStatus != PaymentPaid {
+		return ErrOrderAlreadyDecided
+	}
+	if changed {
+		s.writeAudit(c, "shop_order.confirm.shopee_qris", entityOrder, value.ID, nil, map[string]any{
+			"subtotal": value.Subtotal, "shipping_cost": value.ShippingCost,
+			"paid_amount": paidAmount, "reference": reference,
+		})
+	}
+	return s.grantReward(c, updated)
+}
+
+func (s *service) ShopeePaymentPending(c *gin.Context, id string) (bool, error) {
+	value, err := s.findOrderByID(c, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, ErrOrderNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return value.PaymentStatus == PaymentPending && value.FulfillmentStatus != FulfillmentCancelled, nil
+}
+
 func (s *service) RejectOrder(c *gin.Context, id string, req *DecideOrderRequest) (*OrderView, error) {
 	if !ratelimit.ShopReview.Allow(ratelimit.Key(c, actorID(c))) {
 		return nil, ratelimit.ErrTooManyRequests
@@ -1295,6 +1346,9 @@ func (s *service) orderView(c *gin.Context, order *ShopOrder, withCharge bool) (
 	charge, err := s.Provider.CreateCharge(c, payment.ChargeRequest{
 		Amount:          int(order.Total),
 		PaymentMethodID: order.PaymentMethodID,
+		EntityType:      "shop_order",
+		EntityID:        order.ID,
+		ExpiresAt:       &order.ExpiresAt,
 	})
 	if err != nil {
 		return nil, err

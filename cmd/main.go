@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"mainyuk/db"
@@ -27,6 +28,8 @@ import (
 	"mainyuk/internal/ranger_presence"
 	"mainyuk/internal/region"
 	"mainyuk/internal/shop"
+	"mainyuk/internal/shopee"
+	"mainyuk/internal/shopee_qris"
 	"mainyuk/internal/thread"
 	"mainyuk/internal/ticket"
 	"mainyuk/internal/user"
@@ -36,6 +39,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
@@ -112,9 +116,16 @@ func main() {
 	paymentMethodRepository := payment_method.NewRepository(db)
 	paymentMethodService := payment_method.NewService(paymentMethodRepository)
 	paymentMethodHandler := payment_method.NewHandler(paymentMethodService)
+	shopeeService := shopee.NewFromEnv()
+	shopeeQRISService := shopee_qris.New(db, shopeeService)
+	if err := shopeeQRISService.Validate(context.Background()); err != nil {
+		log.Fatalf("Shopee QRIS tidak dapat dimulai: %v", err)
+	}
+	shopeeService.SetPaymentLookup(shopeeQRISService)
+	paymentProvider := payment.NewShopeeQRISProvider(paymentMethodService, shopeeQRISService)
 
 	orderRepository := order.NewRepository(db)
-	orderService := order.NewService(orderRepository, ticketService, userTicketService, eventService, paymentMethodService, userService)
+	orderService := order.NewService(orderRepository, ticketService, userTicketService, eventService, paymentMethodService, userService, paymentProvider)
 	orderHandler := order.NewHandler(orderService)
 
 	regionRepository := region.NewRepository(db)
@@ -151,9 +162,8 @@ func main() {
 	missionService := mission.NewService(missionRepository, gamificationService, communityService)
 	missionHandler := mission.NewHandler(missionService)
 
-	// Fase 2: fundraising. Hanya provider manual yang dipasang; seam
-	// PaymentProvider disiapkan supaya gateway bisa ditambahkan tanpa mengubah
-	// domain donasi maupun laporan. community dipakai sebagai DonorResolver
+	// Fase 2: fundraising memakai provider gabungan: SHOPEE_QRIS otomatis,
+	// metode lain tetap manual. community dipakai sebagai DonorResolver
 	// (pembaca profil, termasuk visibilitas dan status blokir), dan
 	// gamification sebagai RewardGranter donasi.
 	fundraisingRepository := fundraising.NewRepository(db)
@@ -162,7 +172,7 @@ func main() {
 		communityService,
 		gamificationService,
 		paymentMethodService,
-		fundraising.NewManualProvider(paymentMethodService),
+		paymentProvider,
 	)
 	fundraisingHandler := fundraising.NewHandler(fundraisingService)
 
@@ -176,9 +186,8 @@ func main() {
 	threadService := thread.NewService(threadRepository, communityService)
 	threadHandler := thread.NewHandler(threadService)
 
-	// Fase 4: marketplace merchandise. Penjual tunggal, pembayaran manual
-	// seperti donasi, tanpa pekerja latar — kedaluwarsa tahanan stok dihitung
-	// saat pesanannya diakses.
+	// Fase 4: marketplace merchandise. Metode manual tetap diverifikasi
+	// pengurus, sedangkan SHOPEE_QRIS diselesaikan worker bersama di bawah.
 	//
 	// Provider-nya adalah adapter yang sama dengan donasi (internal/payment),
 	// dan gamification dipakai sebagai RewardGranter pesanan. Repository toko
@@ -190,7 +199,7 @@ func main() {
 	shopService := shop.NewService(
 		shopRepository,
 		gamificationService,
-		payment.NewManualProvider(paymentMethodService),
+		paymentProvider,
 	)
 	shopHandler := shop.NewHandler(shopService)
 
@@ -230,6 +239,34 @@ func main() {
 	commentService.SetAuthorGuard(communityService)
 	likeService.SetAuthorGuard(communityService)
 
+	// Mutasi diklaim oleh shopee_qris_charges sebelum menyentuh domain. Tiap
+	// cabang settlement idempoten, sehingga restart di tengah proses aman.
+	shopeeQRISService.SetSettler(func(c *gin.Context, entityType, entityID string, paidAmount int64, reference string) error {
+		switch entityType {
+		case shopee_qris.EntityEventOrder:
+			return orderService.ConfirmShopeePayment(c, entityID, paidAmount, reference)
+		case shopee_qris.EntityDonation:
+			return fundraisingService.ConfirmShopeePayment(c, entityID, paidAmount, reference)
+		case shopee_qris.EntityShopOrder:
+			return shopService.ConfirmShopeePayment(c, entityID, paidAmount, reference)
+		default:
+			return fmt.Errorf("jenis entitas QRIS tidak dikenal: %s", entityType)
+		}
+	})
+	shopeeQRISService.SetEligibility(func(c *gin.Context, entityType, entityID string) (bool, error) {
+		switch entityType {
+		case shopee_qris.EntityEventOrder:
+			return orderService.ShopeePaymentPending(c, entityID)
+		case shopee_qris.EntityDonation:
+			return fundraisingService.ShopeePaymentPending(c, entityID)
+		case shopee_qris.EntityShopOrder:
+			return shopService.ShopeePaymentPending(c, entityID)
+		default:
+			return false, fmt.Errorf("jenis entitas QRIS tidak dikenal: %s", entityType)
+		}
+	})
+	shopeeQRISService.Start(context.Background())
+
 	go hub.Run()
 
 	router.InitRouter(
@@ -260,6 +297,7 @@ func main() {
 		shopHandler,
 		metricsHandler,
 		instagramHandler,
+		shopeeService,
 	)
 
 	// output current time zone

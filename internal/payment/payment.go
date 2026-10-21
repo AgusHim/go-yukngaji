@@ -4,8 +4,8 @@
 // Paket ini lahir dari pemindahan seam yang sebelumnya tinggal di dalam
 // internal/fundraising. Donasi adalah konsumen pertamanya, merchandise adalah
 // konsumen keduanya, dan keduanya berbicara ke interface yang sama tanpa perlu
-// saling mengenal — itulah sebabnya permintaan charge di sini tidak menyebut
-// donasi maupun order, hanya nominal dan metode pembayaran.
+// saling mengenal. EntityType/EntityID hanya menjadi kunci korelasi provider;
+// aturan domain tetap berada pada service pemilik transaksi.
 package payment
 
 import (
@@ -33,11 +33,15 @@ type Instruction struct {
 // keadaan provider manual, dan sebabnya pembayar menuliskan identitas
 // transaksinya sebagai berita transfer.
 type Charge struct {
-	Provider     string        `json:"provider"`
-	ExternalID   *string       `json:"external_id"`
-	Amount       int           `json:"amount"`
-	Instructions []Instruction `json:"instructions"`
-	ExpiresAt    *time.Time    `json:"expires_at"`
+	Provider      string        `json:"provider"`
+	ExternalID    *string       `json:"external_id"`
+	Amount        int           `json:"amount"`
+	BaseAmount    int           `json:"base_amount,omitempty"`
+	UniqueCode    int           `json:"unique_code,omitempty"`
+	QRISPayload   string        `json:"qris_payload,omitempty"`
+	PaymentStatus string        `json:"payment_status,omitempty"`
+	Instructions  []Instruction `json:"instructions"`
+	ExpiresAt     *time.Time    `json:"expires_at"`
 }
 
 // WebhookEvent adalah pembayaran yang dilaporkan penyedia pembayaran.
@@ -55,12 +59,14 @@ type WebhookEvent struct {
 // ChargeRequest adalah keterangan minimum yang dibutuhkan provider untuk
 // menyusun instruksi pembayaran.
 //
-// Bentuknya sengaja tidak menyebut donasi maupun order merchandise: itulah
-// yang membuat satu adapter dapat dipakai kedua domain tanpa keduanya saling
-// mengenal, dan tanpa provider perlu tahu apa pun tentang tabel pemanggilnya.
+// EntityType dan EntityID adalah identitas korelasi lintas domain. Provider
+// tidak membaca tabel domain dan tidak menentukan status bisnisnya.
 type ChargeRequest struct {
 	Amount          int
 	PaymentMethodID *string
+	EntityType      string
+	EntityID        string
+	ExpiresAt       *time.Time
 }
 
 // MethodResolver mengambil metode pembayaran untuk menyusun instruksi transfer.
@@ -70,10 +76,8 @@ type MethodResolver interface {
 
 // Provider adalah satu-satunya pintu antara domain dan cara uang berpindah.
 //
-// Yang dipasang saat ini hanya implementasi manual. Menambahkan gateway kelak
-// berarti menambah satu berkas baru yang memenuhi interface ini, lalu
-// mendaftarkannya di titik konstruksi — seluruh modul pemakainya tidak perlu
-// berubah, karena semuanya hanya berbicara ke interface ini.
+// Implementasi gabungan memilih QRIS Shopee untuk metode SHOPEE_QRIS dan
+// mempertahankan metode pembayaran lain pada alur manual.
 type Provider interface {
 	// Name adalah pengenal provider, disimpan pada jejak audit.
 	Name() string

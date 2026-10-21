@@ -512,6 +512,8 @@ type Service interface {
 	// Pesanan pengurus
 	AdminOrders(ctx *gin.Context, filter OrderFilter, page, perPage int) ([]*OrderView, bool, error)
 	ConfirmOrder(ctx *gin.Context, id string, req *ConfirmOrderRequest) (*OrderView, error)
+	ConfirmShopeePayment(ctx *gin.Context, id string, paidAmount int64, reference string) error
+	ShopeePaymentPending(ctx *gin.Context, id string) (bool, error)
 	RejectOrder(ctx *gin.Context, id string, req *DecideOrderRequest) (*OrderView, error)
 	RefundOrder(ctx *gin.Context, id string, req *DecideOrderRequest) (*OrderView, error)
 	FulfillOrder(ctx *gin.Context, id string, req *FulfillOrderRequest) (*OrderView, error)

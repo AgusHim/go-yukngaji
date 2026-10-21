@@ -1,10 +1,12 @@
 package order
 
 import (
+	"errors"
 	"log"
 
 	"mainyuk/internal/apperr"
 	"mainyuk/internal/event"
+	"mainyuk/internal/payment"
 	"mainyuk/internal/payment_method"
 	"mainyuk/internal/ticket"
 	"mainyuk/internal/user"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type service struct {
@@ -23,6 +26,7 @@ type service struct {
 	EventService      event.Service
 	PaymentMethod     payment_method.Service
 	UserService       user.Service
+	Provider          payment.Provider
 	// poster boleh nil; nil berarti aktivitas pendaftaran tidak dibagikan ke
 	// feed, seperti sebelum Fase 3.
 	poster AutoPoster
@@ -60,7 +64,7 @@ func (s *service) removeRegistration(c *gin.Context, orderID string) {
 	}
 }
 
-func NewService(repository Repository, ticketService ticket.Service, userTicketService user_ticket.Service, eventService event.Service, pmService payment_method.Service, userService user.Service) Service {
+func NewService(repository Repository, ticketService ticket.Service, userTicketService user_ticket.Service, eventService event.Service, pmService payment_method.Service, userService user.Service, provider payment.Provider) Service {
 	return &service{
 		Repository:        repository,
 		TicketService:     ticketService,
@@ -68,6 +72,7 @@ func NewService(repository Repository, ticketService ticket.Service, userTicketS
 		EventService:      eventService,
 		PaymentMethod:     pmService,
 		UserService:       userService,
+		Provider:          provider,
 	}
 }
 
@@ -176,6 +181,10 @@ func (s *service) Create(c *gin.Context, req *CreateOrder) (*Order, error) {
 
 	order.CreatedAt = now
 	order.UpdatedAt = now
+	if order.Status == StatusPending {
+		expiresAt := now.Add(30 * time.Minute)
+		order.ExpiredAt = &expiresAt
+	}
 
 	// Kaitkan tiap peserta ke akun yang sudah ada berdasarkan email.
 	// Email yang belum terdaftar dibiarkan kosong dan bisa diklaim nanti.
@@ -222,7 +231,7 @@ func (s *service) Create(c *gin.Context, req *CreateOrder) (*Order, error) {
 	if order.Status == StatusPaid {
 		s.postRegistration(c, currentUser.ID, order.ID, event.Title)
 	}
-	return order, nil
+	return s.attachCharge(c, order)
 }
 
 func (s *service) Show(c *gin.Context, id string) (*Order, error) {
@@ -236,7 +245,7 @@ func (s *service) Show(c *gin.Context, id string) (*Order, error) {
 	}
 	order.UserTickets = tickets
 	order.ComputeTotal()
-	return order, nil
+	return s.attachCharge(c, order)
 }
 
 func (s *service) ShowByPublicID(c *gin.Context, public_id string) (*Order, error) {
@@ -254,7 +263,22 @@ func (s *service) ShowByPublicID(c *gin.Context, public_id string) (*Order, erro
 	}
 	order.UserTickets = tickets
 	order.ComputeTotal()
-	return order, nil
+	return s.attachCharge(c, order)
+}
+
+func (s *service) attachCharge(c *gin.Context, value *Order) (*Order, error) {
+	if value == nil || value.Status != StatusPending || value.Total <= 0 || s.Provider == nil {
+		return value, nil
+	}
+	charge, err := s.Provider.CreateCharge(c, payment.ChargeRequest{
+		Amount: value.Total, PaymentMethodID: value.PaymentMethodID,
+		EntityType: "event_order", EntityID: value.ID, ExpiresAt: value.ExpiredAt,
+	})
+	if err != nil {
+		return nil, err
+	}
+	value.Charge = charge
+	return value, nil
 }
 
 func (s *service) Index(c *gin.Context) ([]*Order, error) {
@@ -329,6 +353,45 @@ func (s *service) VerifyOrder(c *gin.Context, id string, status string) (*Order,
 		s.removeRegistration(c, order.ID)
 	}
 	return order, nil
+}
+
+// ConfirmShopeePayment adalah jalur internal worker. Mutasi sudah dicocokkan
+// ke nominal unik dan diklaim di database sebelum fungsi ini dipanggil.
+func (s *service) ConfirmShopeePayment(c *gin.Context, id string, paidAmount int64, reference string) error {
+	value, err := s.Repository.Show(c, id)
+	if err != nil {
+		return err
+	}
+	if value.Status == StatusPaid {
+		s.postRegistration(c, value.UserID, value.ID, s.eventTitle(c, value.EventID))
+		return nil
+	}
+	if value.Status != StatusPending || strings.TrimSpace(reference) == "" || paidAmount < int64(value.Total) {
+		return invalid("order event tidak dapat diselesaikan dari pembayaran Shopee")
+	}
+	moved, err := s.Repository.TransitionStatus(c, value.ID, StatusPending, StatusPaid)
+	if err != nil {
+		return err
+	}
+	if !moved {
+		refreshed, refreshErr := s.Repository.Show(c, id)
+		if refreshErr != nil || refreshed.Status != StatusPaid {
+			return invalid("status order event berubah sebelum settlement")
+		}
+	}
+	s.postRegistration(c, value.UserID, value.ID, s.eventTitle(c, value.EventID))
+	return nil
+}
+
+func (s *service) ShopeePaymentPending(c *gin.Context, id string) (bool, error) {
+	value, err := s.Repository.Show(c, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return value.Status == StatusPending, nil
 }
 
 // eventTitle mengambil judul event untuk judul postingan. Kegagalan

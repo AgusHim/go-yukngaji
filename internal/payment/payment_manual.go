@@ -7,8 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// manualProvider adalah satu-satunya provider yang dipasang saat ini.
-//
 // Uang berpindah lewat transfer bank/e-wallet biasa dan diverifikasi pengurus.
 // Provider ini tidak menghubungi jaringan mana pun; ia hanya menyusun instruksi
 // transfer dari metode pembayaran yang sudah dikelola admin.

@@ -67,6 +67,7 @@ func InitRouter(
 	shopHandler shop.Handler,
 	metricsHandler metrics.Handler,
 	instagramHandler instagram.Handler,
+	shopeeServices ...*shopee.Service,
 ) {
 	mode := os.Getenv("GIN_MODE")
 	gin.SetMode(mode)
@@ -84,7 +85,11 @@ func InitRouter(
 
 	// Service legacy ShopeePay/QRIS tetap berada di root agar integrasi lama
 	// tidak perlu mengganti URL saat server.js dipensiunkan.
-	shopee.Register(r, shopee.NewFromEnv())
+	shopeeService := shopee.NewFromEnv()
+	if len(shopeeServices) > 0 && shopeeServices[0] != nil {
+		shopeeService = shopeeServices[0]
+	}
+	shopee.Register(r, shopeeService)
 
 	api := r.Group("api")
 	user_api := r.Group("user_api")

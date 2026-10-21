@@ -685,6 +685,64 @@ func (s *service) ConfirmDonation(c *gin.Context, id string, req *ConfirmDonatio
 	return s.Repository.FindDonationByID(c, id)
 }
 
+// ConfirmShopeePayment menyelesaikan donasi dari mutasi yang sudah diklaim
+// worker. Tidak memakai rate-limit pengurus dan aman dipanggil ulang.
+func (s *service) ConfirmShopeePayment(c *gin.Context, id string, paidAmount int64, reference string) error {
+	donation, err := s.findDonationByID(c, id)
+	if err != nil {
+		return err
+	}
+	if donation.Status == DonationConfirmed {
+		if err := s.grantDonationReward(c, donation); err != nil {
+			return err
+		}
+		s.postDonation(c, donation)
+		return nil
+	}
+	if donation.Status != DonationPending || paidAmount < int64(donation.Amount) || strings.TrimSpace(reference) == "" {
+		return ErrDonationAlreadyDecided
+	}
+	if paidAmount > int64(^uint(0)>>1) {
+		return invalid("nominal pembayaran Shopee terlalu besar")
+	}
+	now := time.Now()
+	paid := int(paidAmount)
+	changed, err := s.Repository.TransitionDonation(c, id, DonationPending, DonationConfirmed, map[string]interface{}{
+		"paid_amount": paid, "payment_reference": strings.TrimSpace(reference), "confirmed_at": now,
+	})
+	if err != nil {
+		return err
+	}
+	updated, err := s.Repository.FindDonationByID(c, id)
+	if err != nil {
+		return err
+	}
+	if !changed && updated.Status != DonationConfirmed {
+		return ErrDonationAlreadyDecided
+	}
+	if changed {
+		s.writeAudit(c, "donation.confirm.shopee_qris", "donation", id, nil, map[string]any{
+			"amount": donation.Amount, "paid_amount": paid, "reference": reference,
+		})
+	}
+	if err := s.grantDonationReward(c, updated); err != nil {
+		return err
+	}
+	s.postDonation(c, updated)
+	return nil
+}
+
+func (s *service) ShopeePaymentPending(c *gin.Context, id string) (bool, error) {
+	donation, err := s.findDonationByID(c, id)
+	if errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, ErrDonationNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return donation.Status == DonationPending, nil
+}
+
 func (s *service) RejectDonation(c *gin.Context, id string, req *DecideDonation) (*Donation, error) {
 	reason, err := requireReason(req)
 	if err != nil {
@@ -1040,12 +1098,13 @@ func (s *service) donationResult(c *gin.Context, donation *Donation, campaign *C
 
 	var charge *Charge
 	if s.Provider != nil {
-		// Sejak Fase 4 provider tidak lagi menerima baris donasi utuh, hanya
-		// nominal dan metode pembayarannya — itulah yang membuat adapter yang
-		// sama dapat dipakai merchandise tanpa mengenal tabel donasi.
+		// Provider menerima nominal, metode, dan kunci korelasi saja; ia tidak
+		// menerima model donasi atau aturan bisnis campaign.
 		built, err := s.Provider.CreateCharge(c, payment.ChargeRequest{
 			Amount:          donation.Amount,
 			PaymentMethodID: donation.PaymentMethodID,
+			EntityType:      "donation",
+			EntityID:        donation.ID,
 		})
 		if err != nil {
 			return nil, err

@@ -3,6 +3,7 @@ package order
 import (
 	"mainyuk/internal/divisi"
 	"mainyuk/internal/event"
+	"mainyuk/internal/payment"
 	"mainyuk/internal/payment_method"
 	"mainyuk/internal/user"
 	"mainyuk/internal/user_ticket"
@@ -35,7 +36,8 @@ type Order struct {
 
 	// Total adalah jumlah yang harus dibayar (tiket + donasi + biaya admin).
 	// Tidak disimpan sebagai kolom; selalu dihitung dari komponennya.
-	Total int `json:"total" gorm:"-"`
+	Total  int             `json:"total" gorm:"-"`
+	Charge *payment.Charge `json:"charge,omitempty" gorm:"-"`
 }
 
 // ComputeTotal mengisi Total dari komponen tagihan.
@@ -121,6 +123,8 @@ type Service interface {
 	Index(ctx *gin.Context) ([]*Order, error)
 	IndexAdmin(ctx *gin.Context) ([]*Order, error)
 	VerifyOrder(ctx *gin.Context, id string, status string) (*Order, error)
+	ConfirmShopeePayment(ctx *gin.Context, id string, paidAmount int64, reference string) error
+	ShopeePaymentPending(ctx *gin.Context, id string) (bool, error)
 	// SetAutoPoster memasang peniti aktivitas ke feed komunitas. Boleh tidak
 	// dipasang: tanpa itu, order berjalan seperti sebelum Fase 3.
 	SetAutoPoster(poster AutoPoster)

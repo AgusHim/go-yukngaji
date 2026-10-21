@@ -54,6 +54,28 @@ type Service struct {
 	usedTransactions map[string]time.Time
 	logs             []logEntry
 	httpClient       *http.Client
+	paymentLookup    PaymentLookup
+	autoValidation   bool
+}
+
+// PaymentLookup membuat endpoint legacy /check-payment membaca klaim
+// persisten yang sama dengan worker, bukan membuat klaim kedua di memori.
+type PaymentLookup interface {
+	PaidTransaction(ctx context.Context, amount int64, start time.Time) (*SuccessfulTransaction, error)
+}
+
+func (s *Service) SetPaymentLookup(lookup PaymentLookup) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.paymentLookup = lookup
+}
+
+// SetAutoValidation diperbarui worker agar health melaporkan proses yang
+// benar-benar berjalan, bukan sekadar keberadaan environment.
+func (s *Service) SetAutoValidation(active bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.autoValidation = active
 }
 
 func NewFromEnv() *Service {
@@ -128,9 +150,14 @@ func (s *Service) client() *http.Client {
 
 func (s *Service) health(c *gin.Context) {
 	s.mu.RLock()
-	configured := s.shopeeToken != ""
+	tokenConfigured := strings.TrimSpace(s.shopeeToken) != ""
+	qrisConfigured := strings.TrimSpace(s.qrisStatic) != ""
+	autoValidation := s.autoValidation
 	s.mu.RUnlock()
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"service": "ShopeePay/QRIS", "token_configured": configured}})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{
+		"service": "ShopeePay/QRIS", "token_configured": tokenConfigured,
+		"qris_configured": qrisConfigured, "auto_validation": autoValidation,
+	}})
 }
 
 func (s *Service) updateToken(c *gin.Context) {
@@ -254,6 +281,25 @@ func (s *Service) checkPayment(c *gin.Context) {
 	if body.StartTime > 0 {
 		start = time.Unix(body.StartTime, 0).UTC()
 	}
+	s.mu.RLock()
+	lookup := s.paymentLookup
+	s.mu.RUnlock()
+	if lookup != nil {
+		matched, lookupErr := lookup.PaidTransaction(c.Request.Context(), body.Amount, start)
+		if lookupErr != nil {
+			s.transactionError(c, lookupErr)
+			return
+		}
+		if matched == nil {
+			c.JSON(http.StatusOK, gin.H{"success": true, "paid": false})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"success": true, "paid": true, "transaction": gin.H{
+			"transactionId": matched.ID, "amount": matched.Amount, "status": "Success",
+			"time": matched.CreateTime.In(time.FixedZone("WIB", 7*60*60)).Format("2006-01-02 15:04:05"), "issuer": "ShopeePay/QRIS",
+		}})
+		return
+	}
 	transactions, _, err := s.listTransactions(c.Request.Context(), s.requestToken(c), start, end, 50, "")
 	if err != nil {
 		s.transactionError(c, err)
@@ -313,6 +359,78 @@ type transaction struct {
 	Status               int    `json:"status"`
 	CreateTime           int64  `json:"createTime"`
 	Amount               int64  `json:"-"`
+}
+
+// SuccessfulTransaction adalah mutasi berhasil yang dapat dipakai worker
+// pembayaran. Worker tetap wajib mengklaim ID-nya secara atomik di database.
+type SuccessfulTransaction struct {
+	ID         string
+	DisplayID  string
+	Amount     int64
+	CreateTime time.Time
+}
+
+// SuccessfulTransactions membaca seluruh halaman mutasi berhasil pada rentang
+// waktu yang diminta.
+func (s *Service) SuccessfulTransactions(ctx context.Context, start, end time.Time) ([]SuccessfulTransaction, error) {
+	if s == nil {
+		return nil, fmt.Errorf("Shopee transaction provider is not configured")
+	}
+	s.mu.RLock()
+	token := strings.TrimSpace(s.shopeeToken)
+	s.mu.RUnlock()
+	if token == "" {
+		return nil, fmt.Errorf("Shopee token is not configured")
+	}
+
+	position := ""
+	result := make([]SuccessfulTransaction, 0)
+	for {
+		page, next, err := s.listTransactions(ctx, token, start, end, 100, position)
+		if err != nil {
+			return nil, err
+		}
+		for _, candidate := range page {
+			if candidate.Status != 3 || candidate.ID == "" || candidate.Amount <= 0 {
+				continue
+			}
+			result = append(result, SuccessfulTransaction{
+				ID:         candidate.ID,
+				DisplayID:  candidate.DisplayIDOrID(),
+				Amount:     candidate.Amount,
+				CreateTime: time.Unix(candidate.CreateTime, 0).UTC(),
+			})
+		}
+		if len(page) < 100 || next == "" {
+			break
+		}
+		position = next
+	}
+	return result, nil
+}
+
+// Configured menyatakan apakah token mutasi dan QRIS statis tersedia.
+func (s *Service) Configured() bool {
+	if s == nil {
+		return false
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return strings.TrimSpace(s.shopeeToken) != "" && strings.TrimSpace(s.qrisStatic) != ""
+}
+
+// DynamicQRIS membentuk payload QRIS nominal dinamis dari QRIS statis service.
+func (s *Service) DynamicQRIS(amount int64) (string, error) {
+	if s == nil || amount <= 0 {
+		return "", fmt.Errorf("invalid QRIS amount")
+	}
+	s.mu.RLock()
+	staticQR := s.qrisStatic
+	s.mu.RUnlock()
+	if strings.TrimSpace(staticQR) == "" {
+		return "", fmt.Errorf("QRIS_STATIC is not configured")
+	}
+	return dynamicQRIS(staticQR, amount)
 }
 
 func (t transaction) DisplayIDOrID() string {

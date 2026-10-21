@@ -11,6 +11,10 @@ import (
 // provider manual sedang salah memakai provider, bukan mengirim input buruk.
 var ErrWebhookUnsupported = errors.New("provider ini tidak mendukung webhook")
 
+// ErrProviderUnavailable berarti metode dipilih tetapi adapter operasionalnya
+// tidak terpasang; ini kegagalan konfigurasi server, bukan input pembeli.
+var ErrProviderUnavailable = errors.New("payment provider is not configured")
+
 // ValidationError menandai kesalahan input pemanggil. Dipetakan ke HTTP 400
 // lewat apperr.IsValidation.
 //

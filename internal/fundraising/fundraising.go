@@ -470,6 +470,8 @@ type Service interface {
 	CampaignReport(ctx *gin.Context, id string) (*ReportView, error)
 	DonationsForReview(ctx *gin.Context, filter DonationFilter, page, perPage int) ([]*AdminDonationView, bool, error)
 	ConfirmDonation(ctx *gin.Context, id string, req *ConfirmDonation) (*Donation, error)
+	ConfirmShopeePayment(ctx *gin.Context, id string, paidAmount int64, reference string) error
+	ShopeePaymentPending(ctx *gin.Context, id string) (bool, error)
 	RejectDonation(ctx *gin.Context, id string, req *DecideDonation) (*Donation, error)
 	RefundDonation(ctx *gin.Context, id string, req *DecideDonation) (*Donation, error)
 	ModerateMessage(ctx *gin.Context, id string, req *ModerateMessage) (*Donation, error)
