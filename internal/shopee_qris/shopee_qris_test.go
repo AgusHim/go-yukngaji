@@ -38,7 +38,7 @@ func TestRandomCodeAlwaysWithinDatabaseConstraint(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if code < 1 || code > 99999 {
+		if code < 1 || code > 999 {
 			t.Fatalf("kode %d di luar rentang", code)
 		}
 	}

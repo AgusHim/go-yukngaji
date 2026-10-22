@@ -220,7 +220,7 @@ func randomCode() (int, error) {
 	if _, err := cryptorand.Read(raw[:]); err != nil {
 		return 0, err
 	}
-	return int(binary.BigEndian.Uint64(raw[:])%99999) + 1, nil
+	return int(binary.BigEndian.Uint64(raw[:])%999) + 1, nil
 }
 
 func isUniqueViolation(err error) bool {
