@@ -334,13 +334,20 @@ func (s *service) MyOrders(c *gin.Context, page, perPage int) ([]*OrderView, boo
 		return nil, false, err
 	}
 
-	// Daftar tidak menyertakan instruksi transfer: satu halaman berisi dua
-	// puluh pesanan, dan setiap instruksi menuntut satu pembacaan metode
-	// pembayaran. Instruksinya ada di halaman rincian pesanannya.
+	// Daftar membawa ringkasan charge (tanpa instruksi) supaya nominal unik
+	// tetap terlihat di riwayat transaksi.
 	views := make([]*OrderView, 0, len(settled))
 	for _, order := range settled {
 		order.Items = items[order.ID]
-		views = append(views, &OrderView{ShopOrder: *order})
+		view := &OrderView{ShopOrder: *order}
+		if s.Provider != nil {
+			charge, err := payment.LookupCharge(c, s.Provider, "shop_order", order.ID)
+			if err != nil {
+				return nil, false, err
+			}
+			view.Charge = charge
+		}
+		views = append(views, view)
 	}
 	return views, hasMore, nil
 }
@@ -1339,7 +1346,15 @@ func (s *service) orderView(c *gin.Context, order *ShopOrder, withCharge bool) (
 	order.Items = items
 
 	view := &OrderView{ShopOrder: *order}
-	if !withCharge || s.Provider == nil || order.PaymentStatus != PaymentPending {
+	if !withCharge || s.Provider == nil {
+		return view, nil
+	}
+	if order.PaymentStatus != PaymentPending {
+		charge, err := payment.LookupCharge(c, s.Provider, "shop_order", order.ID)
+		if err != nil {
+			return nil, err
+		}
+		view.Charge = charge
 		return view, nil
 	}
 

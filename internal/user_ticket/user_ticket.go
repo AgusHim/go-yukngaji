@@ -94,7 +94,8 @@ type Repository interface {
 	ShowByPublicID(ctx *gin.Context, public_id string) (*UserTicket, error)
 	Index(ctx *gin.Context) ([]*UserTicket, error)
 	IndexByOrderID(ctx *gin.Context, order_id string) ([]*UserTicket, error)
-	// CountByTicketID menghitung tiket terjual (belum dihapus) untuk satu jenis tiket.
+	// CountByTicketID menghitung tiket yang masih menahan kuota: paid atau
+	// pending yang belum melewati expired_at.
 	CountByTicketID(ctx *gin.Context, ticket_id string) (int64, error)
 	// ClaimByEmail mengaitkan tiket yang belum diklaim ke akun dengan email itu.
 	ClaimByEmail(ctx *gin.Context, user_id string, email string) (int64, error)

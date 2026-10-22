@@ -61,6 +61,23 @@ func (p *shopeeQRISProvider) CreateCharge(c *gin.Context, req ChargeRequest) (*C
 	}, nil
 }
 
+func (p *shopeeQRISProvider) LookupCharge(c *gin.Context, entityType, entityID string) (*Charge, error) {
+	if p.qris == nil {
+		return nil, nil
+	}
+	stored, err := p.qris.LookupCharge(c, entityType, entityID)
+	if err != nil || stored == nil {
+		return nil, err
+	}
+	externalID := stored.ID
+	return &Charge{
+		Provider: p.Name(), ExternalID: &externalID,
+		Amount: int(stored.PayableAmount), BaseAmount: int(stored.BaseAmount),
+		UniqueCode: stored.UniqueCode, QRISPayload: stored.QRISPayload,
+		PaymentStatus: stored.Status, ExpiresAt: &stored.ExpiresAt,
+	}, nil
+}
+
 func (p *shopeeQRISProvider) ParseWebhook(c *gin.Context, body []byte, headers http.Header) (*WebhookEvent, error) {
 	return nil, ErrWebhookUnsupported
 }

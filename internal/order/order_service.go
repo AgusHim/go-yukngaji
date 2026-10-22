@@ -267,7 +267,15 @@ func (s *service) ShowByPublicID(c *gin.Context, public_id string) (*Order, erro
 }
 
 func (s *service) attachCharge(c *gin.Context, value *Order) (*Order, error) {
-	if value == nil || value.Status != StatusPending || value.Total <= 0 || s.Provider == nil {
+	if value == nil || value.Total <= 0 || s.Provider == nil {
+		return value, nil
+	}
+	if value.Status != StatusPending {
+		charge, err := payment.LookupCharge(c, s.Provider, "event_order", value.ID)
+		if err != nil {
+			return nil, err
+		}
+		value.Charge = charge
 		return value, nil
 	}
 	charge, err := s.Provider.CreateCharge(c, payment.ChargeRequest{
@@ -290,6 +298,11 @@ func (s *service) Index(c *gin.Context) ([]*Order, error) {
 	if err != nil {
 		return nil, err
 	}
+	for _, value := range order {
+		if _, err := s.attachCharge(c, value); err != nil {
+			return nil, err
+		}
+	}
 	return order, nil
 }
 
@@ -297,6 +310,11 @@ func (s *service) IndexAdmin(c *gin.Context) ([]*Order, error) {
 	order, err := s.Repository.Index(c, nil)
 	if err != nil {
 		return nil, err
+	}
+	for _, value := range order {
+		if _, err := s.attachCharge(c, value); err != nil {
+			return nil, err
+		}
 	}
 	return order, nil
 }

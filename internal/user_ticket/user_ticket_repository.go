@@ -62,9 +62,16 @@ func (r *repository) ShowByPublicID(c *gin.Context, id string) (*UserTicket, err
 
 func (r *repository) CountByTicketID(c *gin.Context, ticket_id string) (int64, error) {
 	var count int64
+	now := time.Now()
+	// Tiket dibuat sejak checkout agar data peserta dapat langsung direkam,
+	// tetapi hanya order yang masih punya hak atas kuota yang boleh dihitung.
+	// Pending menahan kuota sampai expired_at; paid menahannya permanen.
+	// Order expired/cancelled/failed/refunded tidak lagi mengunci max_pax.
 	err := r.db.Model(&UserTicket{}).
-		Where("ticket_id = ?", ticket_id).
-		Where("deleted_at IS NULL").
+		Joins("JOIN orders ON orders.id = user_tickets.order_id").
+		Where("user_tickets.ticket_id = ?", ticket_id).
+		Where("user_tickets.deleted_at IS NULL").
+		Where("(orders.status = ? OR (orders.status = ? AND (orders.expired_at IS NULL OR orders.expired_at > ?)))", "paid", "pending", now).
 		Count(&count).Error
 	if err != nil {
 		return 0, err

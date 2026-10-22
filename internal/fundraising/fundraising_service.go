@@ -277,7 +277,11 @@ func (s *service) MyDonations(c *gin.Context, page, perPage int) ([]*DonationVie
 
 	views := make([]*DonationView, 0, len(donations))
 	for _, donation := range donations {
-		views = append(views, s.toDonationView(c, donation))
+		view := s.toDonationView(c, donation)
+		if err := s.attachDonationCharge(c, donation, view); err != nil {
+			return nil, false, err
+		}
+		views = append(views, view)
 	}
 	return views, hasMore, nil
 }
@@ -1121,6 +1125,29 @@ func (s *service) toDonationView(c *gin.Context, donation *Donation) *DonationVi
 		CampaignSlug:  slug,
 		CampaignTitle: title,
 	}
+}
+
+func (s *service) attachDonationCharge(c *gin.Context, donation *Donation, view *DonationView) error {
+	if s.Provider == nil || donation == nil || view == nil {
+		return nil
+	}
+	if donation.Status == DonationPending {
+		charge, err := s.Provider.CreateCharge(c, payment.ChargeRequest{
+			Amount: donation.Amount, PaymentMethodID: donation.PaymentMethodID,
+			EntityType: "donation", EntityID: donation.ID,
+		})
+		if err != nil {
+			return err
+		}
+		view.Charge = charge
+		return nil
+	}
+	charge, err := payment.LookupCharge(c, s.Provider, "donation", donation.ID)
+	if err != nil {
+		return err
+	}
+	view.Charge = charge
+	return nil
 }
 
 // toPublicDonations menerapkan aturan anonimitas satu kali untuk semua

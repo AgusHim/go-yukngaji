@@ -215,6 +215,25 @@ func (s *Service) CreateCharge(c *gin.Context, entityType, entityID string, base
 	return &result, nil
 }
 
+// LookupCharge membaca charge yang sudah diterbitkan untuk satu transaksi.
+// Nil mengartikan transaksi tersebut memang bukan charge QRIS Shopee.
+func (s *Service) LookupCharge(c *gin.Context, entityType, entityID string) (*Charge, error) {
+	if s == nil || s.db == nil || !validEntity(entityType) || strings.TrimSpace(entityID) == "" {
+		return nil, nil
+	}
+	var charge Charge
+	err := s.db.WithContext(requestContext(c)).
+		Where("entity_type = ? AND entity_id = ?", entityType, entityID).
+		First(&charge).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &charge, nil
+}
+
 func randomCode() (int, error) {
 	var raw [8]byte
 	if _, err := cryptorand.Read(raw[:]); err != nil {

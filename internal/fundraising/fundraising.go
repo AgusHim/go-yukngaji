@@ -279,8 +279,9 @@ type PublicDonation struct {
 // berhak melihat donasinya apa adanya.
 type DonationView struct {
 	*Donation
-	CampaignSlug  string `json:"campaign_slug"`
-	CampaignTitle string `json:"campaign_title"`
+	CampaignSlug  string  `json:"campaign_slug"`
+	CampaignTitle string  `json:"campaign_title"`
+	Charge        *Charge `json:"charge,omitempty"`
 }
 
 // AdminDonationView adalah donasi pada antrean verifikasi pengurus.

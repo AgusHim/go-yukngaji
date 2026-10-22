@@ -90,3 +90,19 @@ type Provider interface {
 	// ErrWebhookUnsupported.
 	ParseWebhook(ctx *gin.Context, body []byte, headers http.Header) (*WebhookEvent, error)
 }
+
+// ChargeLookup bersifat opsional: provider manual tidak menyimpan charge,
+// sedangkan QRIS dapat membaca nominal unik yang sudah diterbitkan tanpa
+// membuat pembayaran baru.
+type ChargeLookup interface {
+	LookupCharge(ctx *gin.Context, entityType, entityID string) (*Charge, error)
+}
+
+// LookupCharge membaca charge yang sudah ada bila provider mendukungnya.
+func LookupCharge(ctx *gin.Context, provider Provider, entityType, entityID string) (*Charge, error) {
+	lookup, ok := provider.(ChargeLookup)
+	if !ok || lookup == nil {
+		return nil, nil
+	}
+	return lookup.LookupCharge(ctx, entityType, entityID)
+}
