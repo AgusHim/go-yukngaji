@@ -17,8 +17,7 @@ const (
 	SourceMission         = "mission"
 	SourceAdjustment      = "adjustment"
 	// SourceDonation adalah reward untuk donasi yang pembayarannya sudah
-	// terkonfirmasi. Besarannya tetap, bukan proporsional nominal, supaya XP
-	// tidak bisa "dibeli" dengan memperbesar donasi.
+	// terkonfirmasi. Besarannya proporsional terhadap nominal donasi.
 	SourceDonation = "donation"
 	// SourceDonationReversal membalik reward donasi saat donasi di-refund.
 	// Dipisah dari SourceAdjustment supaya pembalikan otomatis dapat dibedakan
@@ -216,10 +215,11 @@ type Service interface {
 	GrantMissionReward(ctx *gin.Context, userID, claimID string, xp int) (bool, error)
 
 	// GrantDonationReward memberi XP untuk donasi yang pembayarannya sudah
-	// terkonfirmasi. Mengembalikan XP yang benar-benar berlaku (0 bila aturan
-	// kosong atau batas bulanan sudah tercapai) supaya pemanggil dapat
+	// terkonfirmasi. amount adalah nominal donasi yang sudah tervalidasi.
+	// Mengembalikan XP yang benar-benar berlaku (0 bila aturan kosong atau
+	// batas bulanan sudah tercapai) supaya pemanggil dapat
 	// menyimpannya sebagai snapshot untuk pembalikan saat refund.
-	GrantDonationReward(ctx *gin.Context, userID, donationID string) (int, error)
+	GrantDonationReward(ctx *gin.Context, userID, donationID string, amount int) (int, error)
 
 	// ReverseDonationReward membalik XP donasi yang di-refund. Idempoten lewat
 	// kunci dedup deterministik, jadi mengulang refund tidak menggandakan

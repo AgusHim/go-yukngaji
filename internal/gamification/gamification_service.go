@@ -150,7 +150,7 @@ func (s *service) GrantMissionReward(c *gin.Context, userID, claimID string, xp 
 // keputusannya bergantung pada isi ledger bulan berjalan, jadi hitung-lalu-
 // sisip harus berada dalam satu transaksi. Baris profil tetap dipastikan ada
 // lebih dulu di luar transaksi itu.
-func (s *service) GrantDonationReward(c *gin.Context, userID, donationID string) (int, error) {
+func (s *service) GrantDonationReward(c *gin.Context, userID, donationID string, amount int) (int, error) {
 	if userID == "" || donationID == "" {
 		return 0, nil
 	}
@@ -163,7 +163,8 @@ func (s *service) GrantDonationReward(c *gin.Context, userID, donationID string)
 		}
 		return 0, err
 	}
-	if rule.XP <= 0 {
+	xp := DonationRewardXP(amount, rule.XP)
+	if xp <= 0 {
 		return 0, nil
 	}
 
@@ -188,7 +189,7 @@ func (s *service) GrantDonationReward(c *gin.Context, userID, donationID string)
 		RefID:      &donationID,
 		DedupKey:   DonationDedupKey(userID, donationID),
 	}
-	return s.Repository.GrantCappedOnce(c, entry, SourceDonation, "donation_reward:"+userID, from, to, rule.XP, monthlyCap)
+	return s.Repository.GrantCappedOnce(c, entry, SourceDonation, "donation_reward:"+userID, from, to, xp, monthlyCap)
 }
 
 // GrantShopOrderReward memberi XP untuk pesanan merchandise yang pembayarannya

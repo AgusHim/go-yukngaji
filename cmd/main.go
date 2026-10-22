@@ -126,6 +126,9 @@ func main() {
 
 	orderRepository := order.NewRepository(db)
 	orderService := order.NewService(orderRepository, ticketService, userTicketService, eventService, paymentMethodService, userService, paymentProvider)
+	// Perbarui transaksi event yang melewati expired_at, termasuk transaksi
+	// manual yang tidak memiliki worker pembayaran sendiri.
+	orderService.StartExpiryWorker(context.Background())
 	orderHandler := order.NewHandler(orderService)
 
 	regionRepository := region.NewRepository(db)

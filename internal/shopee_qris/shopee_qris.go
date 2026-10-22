@@ -222,14 +222,15 @@ func (s *Service) LookupCharge(c *gin.Context, entityType, entityID string) (*Ch
 		return nil, nil
 	}
 	var charge Charge
-	err := s.db.WithContext(requestContext(c)).
+	tx := s.db.WithContext(requestContext(c)).
 		Where("entity_type = ? AND entity_id = ?", entityType, entityID).
-		First(&charge).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, nil
+		Limit(1).
+		Find(&charge)
+	if tx.Error != nil {
+		return nil, tx.Error
 	}
-	if err != nil {
-		return nil, err
+	if tx.RowsAffected == 0 {
+		return nil, nil
 	}
 	return &charge, nil
 }

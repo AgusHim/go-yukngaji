@@ -381,7 +381,7 @@ type DonorResolver interface {
 
 // RewardGranter menghubungkan donasi terkonfirmasi dengan ledger XP.
 type RewardGranter interface {
-	GrantDonationReward(ctx *gin.Context, userID, donationID string) (int, error)
+	GrantDonationReward(ctx *gin.Context, userID, donationID string, amount int) (int, error)
 	ReverseDonationReward(ctx *gin.Context, userID, donationID string, xp int, reason string) error
 }
 

@@ -1185,7 +1185,7 @@ func (s *service) grantDonationReward(c *gin.Context, donation *Donation) error 
 	if s.Rewards == nil || donation == nil || donation.Status != DonationConfirmed {
 		return nil
 	}
-	xp, err := s.Rewards.GrantDonationReward(c, donation.UserID, donation.ID)
+	xp, err := s.Rewards.GrantDonationReward(c, donation.UserID, donation.ID, donation.Amount)
 	if err != nil {
 		return err
 	}

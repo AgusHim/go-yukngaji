@@ -124,6 +124,23 @@ func (r *repository) TransitionStatus(c *gin.Context, id string, from string, to
 	return res.RowsAffected > 0, nil
 }
 
+// ExpirePending melakukan transisi pending -> expired langsung di database.
+// Kondisi batas waktu berada di WHERE agar pembayaran yang sudah dikonfirmasi
+// bersamaan tidak pernah tertimpa oleh worker kedaluwarsa.
+func (r *repository) ExpirePending(c *gin.Context, now time.Time) (int64, error) {
+	res := r.db.Model(&Order{}).
+		Where("status = ?", StatusPending).
+		Where("expired_at IS NOT NULL AND expired_at <= ?", now).
+		Updates(map[string]interface{}{
+			"status":     StatusExpired,
+			"updated_at": now,
+		})
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	return res.RowsAffected, nil
+}
+
 func (r *repository) Participants(c *gin.Context, event_id string) ([]*Order, error) {
 	var order []*Order
 	tx := r.db

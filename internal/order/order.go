@@ -1,6 +1,7 @@
 package order
 
 import (
+	"context"
 	"mainyuk/internal/divisi"
 	"mainyuk/internal/event"
 	"mainyuk/internal/payment"
@@ -102,6 +103,10 @@ type Repository interface {
 	// TransitionStatus memindahkan status secara atomik dari from ke to.
 	// Mengembalikan false bila status tidak lagi from (sudah diubah pihak lain).
 	TransitionStatus(ctx *gin.Context, id string, from string, to string) (bool, error)
+	// ExpirePending menandai semua order pending yang sudah melewati batas
+	// pembayarannya. Update bersyarat ini aman dipanggil berulang maupun dari
+	// lebih dari satu instance aplikasi.
+	ExpirePending(ctx *gin.Context, now time.Time) (int64, error)
 	Participants(ctx *gin.Context, event_id string) ([]*Order, error)
 }
 
@@ -125,6 +130,8 @@ type Service interface {
 	VerifyOrder(ctx *gin.Context, id string, status string) (*Order, error)
 	ConfirmShopeePayment(ctx *gin.Context, id string, paidAmount int64, reference string) error
 	ShopeePaymentPending(ctx *gin.Context, id string) (bool, error)
+	// StartExpiryWorker merapikan status order kadaluarsa secara berkala.
+	StartExpiryWorker(ctx context.Context)
 	// SetAutoPoster memasang peniti aktivitas ke feed komunitas. Boleh tidak
 	// dipasang: tanpa itu, order berjalan seperti sebelum Fase 3.
 	SetAutoPoster(poster AutoPoster)

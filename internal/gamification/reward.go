@@ -6,6 +6,19 @@ import (
 	"mainyuk/internal/period"
 )
 
+const donationXPUnit = 10_000
+
+// DonationRewardXP menghitung reward donasi yang sudah valid. Satu unit
+// Rp10.000 bernilai multiplier XP; pecahan di bawah satu unit tidak dibulatkan
+// naik. Dengan multiplier bawaan 1, Rp10.000 menghasilkan 1 XP dan Rp50.000
+// menghasilkan 5 XP.
+func DonationRewardXP(amount, multiplier int) int {
+	if amount < donationXPUnit || multiplier <= 0 {
+		return 0
+	}
+	return (amount / donationXPUnit) * multiplier
+}
+
 // CappedRewardDecision memutuskan XP yang boleh diberikan untuk satu sumber
 // yang dibatasi bulanan (donasi terkonfirmasi, pesanan merchandise terbayar),
 // dengan memperhatikan batas bulanan sumber itu.

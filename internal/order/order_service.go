@@ -1,6 +1,7 @@
 package order
 
 import (
+	"context"
 	"errors"
 	"log"
 
@@ -289,6 +290,21 @@ func (s *service) attachCharge(c *gin.Context, value *Order) (*Order, error) {
 	return value, nil
 }
 
+// attachStoredCharge hanya membaca charge QRIS yang sudah pernah diterbitkan.
+// Endpoint riwayat tidak boleh membuat charge baru: selain memberi efek samping
+// pada GET, order lama bisa saja merujuk payment method yang telah dihapus.
+func (s *service) attachStoredCharge(c *gin.Context, value *Order) error {
+	if value == nil || value.Total <= 0 || s.Provider == nil {
+		return nil
+	}
+	charge, err := payment.LookupCharge(c, s.Provider, "event_order", value.ID)
+	if err != nil {
+		return err
+	}
+	value.Charge = charge
+	return nil
+}
+
 func (s *service) Index(c *gin.Context) ([]*Order, error) {
 	user, errUserID := s.GetUserIDAuth(c)
 	if errUserID != nil {
@@ -299,7 +315,7 @@ func (s *service) Index(c *gin.Context) ([]*Order, error) {
 		return nil, err
 	}
 	for _, value := range order {
-		if _, err := s.attachCharge(c, value); err != nil {
+		if err := s.attachStoredCharge(c, value); err != nil {
 			return nil, err
 		}
 	}
@@ -312,7 +328,7 @@ func (s *service) IndexAdmin(c *gin.Context) ([]*Order, error) {
 		return nil, err
 	}
 	for _, value := range order {
-		if _, err := s.attachCharge(c, value); err != nil {
+		if err := s.attachStoredCharge(c, value); err != nil {
 			return nil, err
 		}
 	}
@@ -410,6 +426,40 @@ func (s *service) ShopeePaymentPending(c *gin.Context, id string) (bool, error) 
 		return false, err
 	}
 	return value.Status == StatusPending, nil
+}
+
+const expiryCheckInterval = 15 * time.Second
+
+// StartExpiryWorker langsung menjalankan pembersihan lalu mengulanginya
+// berkala. Status transaksi tidak lagi bergantung pada halaman detail/admin
+// dibuka setelah expired_at terlewati.
+func (s *service) StartExpiryWorker(ctx context.Context) {
+	if s == nil || s.Repository == nil {
+		return
+	}
+	run := func() {
+		count, err := s.Repository.ExpirePending(nil, time.Now())
+		if err != nil {
+			log.Printf("[order] gagal mengubah order kedaluwarsa: %v", err)
+			return
+		}
+		if count > 0 {
+			log.Printf("[order] %d order pending diubah menjadi expired", count)
+		}
+	}
+	run()
+	go func() {
+		ticker := time.NewTicker(expiryCheckInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				run()
+			}
+		}
+	}()
 }
 
 // eventTitle mengambil judul event untuk judul postingan. Kegagalan

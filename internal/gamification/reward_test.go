@@ -5,6 +5,27 @@ import (
 	"time"
 )
 
+func TestDonationRewardXP(t *testing.T) {
+	tests := []struct {
+		name               string
+		amount, multiplier int
+		want               int
+	}{
+		{"di bawah minimum", 9_999, 1, 0},
+		{"minimum", 10_000, 1, 1},
+		{"lima unit", 50_000, 1, 5},
+		{"pecahan dibulatkan ke bawah", 59_999, 1, 5},
+		{"multiplier aturan", 50_000, 2, 10},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := DonationRewardXP(tt.amount, tt.multiplier); got != tt.want {
+				t.Fatalf("DonationRewardXP(%d, %d) = %d, want %d", tt.amount, tt.multiplier, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCappedRewardDecision(t *testing.T) {
 	cases := []struct {
 		name        string
