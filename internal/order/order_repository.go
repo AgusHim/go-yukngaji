@@ -81,7 +81,10 @@ func (r *repository) ReleaseVoucher(c *gin.Context, orderID string) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		var red voucherRedemption
 		if err := tx.Where("order_id = ? AND released_at IS NULL", orderID).First(&red).Error; err != nil {
-			return nil
+			if err == gorm.ErrRecordNotFound {
+				return nil
+			}
+			return err
 		}
 		now := time.Now()
 		if err := tx.Model(&voucherRedemption{}).Where("id = ?", red.ID).Updates(map[string]interface{}{"released_at": now}).Error; err != nil {
@@ -253,20 +256,56 @@ func (r *repository) TransitionStatus(c *gin.Context, id string, from string, to
 // Kondisi batas waktu berada di WHERE agar pembayaran yang sudah dikonfirmasi
 // bersamaan tidak pernah tertimpa oleh worker kedaluwarsa.
 func (r *repository) ExpirePending(c *gin.Context, now time.Time) (int64, error) {
-	if err := r.db.Exec(`WITH released AS (UPDATE voucher_redemptions vr SET released_at = ? FROM orders o WHERE vr.order_id = o.id AND vr.released_at IS NULL AND o.status = ? AND o.expired_at <= ? RETURNING vr.voucher_id) UPDATE vouchers v SET used_count = GREATEST(0, v.used_count - counts.total) FROM (SELECT voucher_id, COUNT(*)::integer AS total FROM released GROUP BY voucher_id) counts WHERE v.id = counts.voucher_id`, now, StatusPending, now).Error; err != nil {
-		return 0, err
-	}
-	res := r.db.Model(&Order{}).
-		Where("status = ?", StatusPending).
-		Where("expired_at IS NOT NULL AND expired_at <= ?", now).
-		Updates(map[string]interface{}{
-			"status":     StatusExpired,
-			"updated_at": now,
-		})
-	if res.Error != nil {
-		return 0, res.Error
-	}
-	return res.RowsAffected, nil
+	var expired int64
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		// Ubah status lebih dahulu dan ambil hanya order yang benar-benar
+		// berpindah. Dengan begitu voucher order yang baru saja dibayar tidak
+		// mungkin ikut dilepas oleh worker kedaluwarsa.
+		rows, err := tx.Raw(`UPDATE orders SET status = ?, updated_at = ? WHERE status = ? AND expired_at IS NOT NULL AND expired_at <= ? RETURNING id`, StatusExpired, now, StatusPending, now).Rows()
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		ids := make([]string, 0)
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			ids = append(ids, id)
+		}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		expired = int64(len(ids))
+		if len(ids) == 0 {
+			return nil
+		}
+
+		redemptions, err := tx.Raw(`UPDATE voucher_redemptions SET released_at = ? WHERE order_id IN ? AND released_at IS NULL RETURNING voucher_id`, now, ids).Rows()
+		if err != nil {
+			return err
+		}
+		defer redemptions.Close()
+		counts := map[string]int{}
+		for redemptions.Next() {
+			var voucherID string
+			if err := redemptions.Scan(&voucherID); err != nil {
+				return err
+			}
+			counts[voucherID]++
+		}
+		if err := redemptions.Err(); err != nil {
+			return err
+		}
+		for voucherID, count := range counts {
+			if err := tx.Model(&Voucher{}).Where("id = ? AND used_count > 0", voucherID).Update("used_count", gorm.Expr("GREATEST(0, used_count - ?)", count)).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	return expired, err
 }
 
 func (r *repository) Participants(c *gin.Context, event_id string) ([]*Order, error) {

@@ -87,20 +87,39 @@ type UpdateOrder struct {
 // Voucher dipakai lintas checkout event dan shop. Target menentukan katalog
 // yang boleh memakai kode ini (saat ini event; shop disiapkan dari awal).
 type Voucher struct {
-	ID, TargetType, TargetID, Code, DiscountType                                    string
-	DiscountValue, MaxDiscount, MinOrderAmount, UsageLimit, UsagePerUser, UsedCount int
-	StartsAt, EndsAt                                                                *time.Time
-	IsActive                                                                        bool
-	CreatedAt, UpdatedAt                                                            time.Time
+	ID             string     `json:"id"`
+	TargetType     string     `json:"target_type"`
+	TargetID       string     `json:"target_id"`
+	Code           string     `json:"code"`
+	DiscountType   string     `json:"discount_type"`
+	DiscountValue  int        `json:"discount_value"`
+	MaxDiscount    int        `json:"max_discount"`
+	MinOrderAmount int        `json:"min_order_amount"`
+	UsageLimit     int        `json:"usage_limit"`
+	UsagePerUser   int        `json:"usage_per_user"`
+	UsedCount      int        `json:"used_count"`
+	StartsAt       *time.Time `json:"starts_at"`
+	EndsAt         *time.Time `json:"ends_at"`
+	IsActive       bool       `json:"is_active"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 func (Voucher) TableName() string { return "vouchers" }
 
 type VoucherInput struct {
-	TargetType, TargetID, Code, DiscountType                             string
-	DiscountValue, MaxDiscount, MinOrderAmount, UsageLimit, UsagePerUser int
-	StartsAt, EndsAt                                                     *time.Time
-	IsActive                                                             bool
+	TargetType     string     `json:"target_type"`
+	TargetID       string     `json:"target_id"`
+	Code           string     `json:"code"`
+	DiscountType   string     `json:"discount_type"`
+	DiscountValue  int        `json:"discount_value"`
+	MaxDiscount    int        `json:"max_discount"`
+	MinOrderAmount int        `json:"min_order_amount"`
+	UsageLimit     int        `json:"usage_limit"`
+	UsagePerUser   int        `json:"usage_per_user"`
+	StartsAt       *time.Time `json:"starts_at"`
+	EndsAt         *time.Time `json:"ends_at"`
+	IsActive       bool       `json:"is_active"`
 }
 
 // UserTicket adalah satu peserta dalam permintaan checkout.

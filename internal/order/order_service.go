@@ -432,6 +432,14 @@ func (s *service) VerifyOrder(c *gin.Context, id string, status string) (*Order,
 	case StatusPaid:
 		s.postRegistration(c, order.UserID, order.ID, s.eventTitle(c, order.EventID))
 	default:
+		// Reservasi voucher hanya menjadi pemakaian final setelah order lunas.
+		// Lepaskan kembali kuota saat admin menutup order pending sebagai gagal,
+		// batal, atau kedaluwarsa.
+		if target == StatusFailed || target == StatusCancelled || target == StatusExpired {
+			if err := s.Repository.ReleaseVoucher(c, order.ID); err != nil {
+				return nil, err
+			}
+		}
 		// Order yang batal, kedaluwarsa, gagal, atau dana dikembalikan tidak
 		// boleh meninggalkan postingan pendaftaran di feed.
 		s.removeRegistration(c, order.ID)
