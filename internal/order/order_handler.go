@@ -105,3 +105,48 @@ func (h *handler) Participants(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, res)
 }
+
+func (h *handler) ListVouchers(c *gin.Context) {
+	res, err := h.Service.ListVouchers(c)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *handler) CreateVoucher(c *gin.Context) {
+	var input VoucherInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+	res, err := h.Service.CreateVoucher(c, &input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, res)
+}
+
+func (h *handler) UpdateVoucher(c *gin.Context) {
+	var input VoucherInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+	res, err := h.Service.UpdateVoucher(c, c.Param("id"), &input)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *handler) DeleteVoucher(c *gin.Context) {
+	if err := h.Service.DeleteVoucher(c, c.Param("id")); err != nil {
+		writeError(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}

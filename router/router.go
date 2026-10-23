@@ -182,6 +182,10 @@ func InitRouter(
 	admin_api.GET("/orders", authMiddleware.AuthAdmin, orderHandler.IndexAdmin)
 	admin_api.GET("/orders/:public_id", authMiddleware.AuthAdmin, orderHandler.ShowByPublicID)
 	admin_api.PUT("/orders/:id/verify", authMiddleware.AuthAdmin, orderHandler.VerifyOrder)
+	admin_api.GET("/vouchers", authMiddleware.AuthAdmin, orderHandler.ListVouchers)
+	admin_api.POST("/vouchers", authMiddleware.AuthAdmin, orderHandler.CreateVoucher)
+	admin_api.PUT("/vouchers/:id", authMiddleware.AuthAdmin, orderHandler.UpdateVoucher)
+	admin_api.DELETE("/vouchers/:id", authMiddleware.AuthAdmin, orderHandler.DeleteVoucher)
 
 	/* Payment Method */
 	user_api.GET("/payment_methods", authMiddleware.AuthUser, paymentMethodHandler.Index)

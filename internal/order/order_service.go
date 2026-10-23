@@ -77,6 +77,51 @@ func NewService(repository Repository, ticketService ticket.Service, userTicketS
 	}
 }
 
+func validateVoucherInput(input *VoucherInput) error {
+	input.TargetType = strings.ToLower(strings.TrimSpace(input.TargetType))
+	input.TargetID = strings.TrimSpace(input.TargetID)
+	input.Code = strings.ToUpper(strings.TrimSpace(input.Code))
+	input.DiscountType = strings.ToLower(strings.TrimSpace(input.DiscountType))
+	if (input.TargetType != "event" && input.TargetType != "shop") || input.TargetID == "" || input.Code == "" {
+		return invalid("target voucher dan kode wajib diisi")
+	}
+	if input.DiscountType != "fixed" && input.DiscountType != "percentage" {
+		return invalid("tipe diskon harus fixed atau percentage")
+	}
+	if input.DiscountValue <= 0 {
+		return invalid("nilai diskon harus lebih dari nol")
+	}
+	if input.DiscountType == "percentage" && input.DiscountValue > 100 {
+		return invalid("diskon persentase maksimal 100")
+	}
+	if input.MaxDiscount < 0 || input.MinOrderAmount < 0 || input.UsageLimit < 0 || input.UsagePerUser < 0 {
+		return invalid("nilai voucher tidak boleh negatif")
+	}
+	if input.StartsAt != nil && input.EndsAt != nil && !input.EndsAt.After(*input.StartsAt) {
+		return invalid("tanggal berakhir harus setelah tanggal mulai")
+	}
+	return nil
+}
+
+func (s *service) ListVouchers(c *gin.Context) ([]*Voucher, error) {
+	return s.Repository.ListVouchers(c)
+}
+func (s *service) CreateVoucher(c *gin.Context, input *VoucherInput) (*Voucher, error) {
+	if err := validateVoucherInput(input); err != nil {
+		return nil, err
+	}
+	return s.Repository.CreateVoucher(c, input)
+}
+func (s *service) UpdateVoucher(c *gin.Context, id string, input *VoucherInput) (*Voucher, error) {
+	if err := validateVoucherInput(input); err != nil {
+		return nil, err
+	}
+	return s.Repository.UpdateVoucher(c, id, input)
+}
+func (s *service) DeleteVoucher(c *gin.Context, id string) error {
+	return s.Repository.DeleteVoucher(c, id)
+}
+
 // Create membangun order beserta tiketnya.
 //
 // Identitas pembeli selalu diambil dari server (currentUser), bukan dari
@@ -177,7 +222,11 @@ func (s *service) Create(c *gin.Context, req *CreateOrder) (*Order, error) {
 	order.Amount = amounts.TicketTotal
 	order.Donation = amounts.Donation
 	order.AdminFee = amounts.AdminFee
-	order.Status = DeriveStatus(amounts.Total)
+	order.DiscountAmount, order.VoucherCode, err = s.Repository.RedeemVoucher(c, order.ID, event.ID, currentUser.ID, req.VoucherCode, amounts.TicketTotal, now)
+	if err != nil {
+		return nil, invalid(err.Error())
+	}
+	order.Status = DeriveStatus(amounts.Total - order.DiscountAmount)
 	order.ComputeTotal()
 
 	order.CreatedAt = now
@@ -221,6 +270,7 @@ func (s *service) Create(c *gin.Context, req *CreateOrder) (*Order, error) {
 
 	order, err = s.Repository.CreateWithTickets(c, order, tickets)
 	if err != nil {
+		_ = s.Repository.ReleaseVoucher(c, order.ID)
 		return nil, err
 	}
 

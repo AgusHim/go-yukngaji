@@ -20,6 +20,8 @@ type Order struct {
 	Amount          int                           `json:"amount" binding:"required"`
 	Donation        int                           `json:"donation" binding:"required"`
 	AdminFee        int                           `json:"admin_fee" binding:"required"`
+	DiscountAmount  int                           `json:"discount_amount"`
+	VoucherCode     *string                       `json:"voucher_code,omitempty"`
 	Status          string                        `json:"status"`
 	InvoiceUrl      *string                       `json:"invoice_url"`
 	InvoiceImageUrl *string                       `json:"invoice_image_url"`
@@ -43,7 +45,10 @@ type Order struct {
 
 // ComputeTotal mengisi Total dari komponen tagihan.
 func (o *Order) ComputeTotal() {
-	o.Total = o.Amount + o.Donation + o.AdminFee
+	o.Total = o.Amount + o.Donation + o.AdminFee - o.DiscountAmount
+	if o.Total < 0 {
+		o.Total = 0
+	}
 }
 
 // AfterFind memastikan Total selalu terisi pada hasil query.
@@ -72,10 +77,30 @@ type CreateOrder struct {
 	UserTickets     []UserTicket `json:"user_tickets" gorm:"-" binding:"required"`
 	Donation        *int         `json:"donation"`
 	AdminFee        *int         `json:"admin_fee"`
+	VoucherCode     string       `json:"voucher_code"`
 }
 
 type UpdateOrder struct {
 	Status string `json:"status"`
+}
+
+// Voucher dipakai lintas checkout event dan shop. Target menentukan katalog
+// yang boleh memakai kode ini (saat ini event; shop disiapkan dari awal).
+type Voucher struct {
+	ID, TargetType, TargetID, Code, DiscountType                                    string
+	DiscountValue, MaxDiscount, MinOrderAmount, UsageLimit, UsagePerUser, UsedCount int
+	StartsAt, EndsAt                                                                *time.Time
+	IsActive                                                                        bool
+	CreatedAt, UpdatedAt                                                            time.Time
+}
+
+func (Voucher) TableName() string { return "vouchers" }
+
+type VoucherInput struct {
+	TargetType, TargetID, Code, DiscountType                             string
+	DiscountValue, MaxDiscount, MinOrderAmount, UsageLimit, UsagePerUser int
+	StartsAt, EndsAt                                                     *time.Time
+	IsActive                                                             bool
 }
 
 // UserTicket adalah satu peserta dalam permintaan checkout.
@@ -96,6 +121,12 @@ type Repository interface {
 	// CreateWithTickets menyimpan order beserta seluruh tiketnya dalam satu
 	// transaksi, sehingga order tanpa tiket tidak mungkin tersimpan.
 	CreateWithTickets(ctx *gin.Context, order *Order, tickets []*user_ticket.UserTicket) (*Order, error)
+	RedeemVoucher(ctx *gin.Context, orderID, eventID, userID, code string, ticketSubtotal int, now time.Time) (int, *string, error)
+	ReleaseVoucher(ctx *gin.Context, orderID string) error
+	ListVouchers(ctx *gin.Context) ([]*Voucher, error)
+	CreateVoucher(ctx *gin.Context, input *VoucherInput) (*Voucher, error)
+	UpdateVoucher(ctx *gin.Context, id string, input *VoucherInput) (*Voucher, error)
+	DeleteVoucher(ctx *gin.Context, id string) error
 	Show(ctx *gin.Context, id string) (*Order, error)
 	ShowByPublicID(ctx *gin.Context, public_id string, user_id *string) (*Order, error)
 	Index(ctx *gin.Context, user_id *string) ([]*Order, error)
@@ -136,6 +167,10 @@ type Service interface {
 	// dipasang: tanpa itu, order berjalan seperti sebelum Fase 3.
 	SetAutoPoster(poster AutoPoster)
 	Participants(ctx *gin.Context, event_id string) ([]*Order, error)
+	ListVouchers(ctx *gin.Context) ([]*Voucher, error)
+	CreateVoucher(ctx *gin.Context, input *VoucherInput) (*Voucher, error)
+	UpdateVoucher(ctx *gin.Context, id string, input *VoucherInput) (*Voucher, error)
+	DeleteVoucher(ctx *gin.Context, id string) error
 }
 
 type Handler interface {
@@ -146,4 +181,8 @@ type Handler interface {
 	IndexAdmin(ctx *gin.Context)
 	VerifyOrder(ctx *gin.Context)
 	Participants(ctx *gin.Context)
+	ListVouchers(ctx *gin.Context)
+	CreateVoucher(ctx *gin.Context)
+	UpdateVoucher(ctx *gin.Context)
+	DeleteVoucher(ctx *gin.Context)
 }
