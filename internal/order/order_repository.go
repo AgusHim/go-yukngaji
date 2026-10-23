@@ -26,53 +26,97 @@ type repository struct {
 	db *gorm.DB
 }
 
-func (r *repository) RedeemVoucher(c *gin.Context, orderID, eventID, userID, code string, subtotal int, now time.Time) (int, *string, error) {
+func (r *repository) previewVoucher(c *gin.Context, eventID, userID, code string, subtotal int, now time.Time) (*Voucher, int, string, error) {
+	code = strings.ToUpper(strings.TrimSpace(code))
+	if code == "" {
+		return nil, 0, "", nil
+	}
+	var v Voucher
+	if err := r.db.Where("target_type = ? AND target_id = ? AND code = ? AND is_active = true", "event", eventID, code).First(&v).Error; err != nil {
+		return nil, 0, "", fmt.Errorf("voucher tidak ditemukan atau tidak aktif")
+	}
+	if (v.StartsAt != nil && now.Before(*v.StartsAt)) || (v.EndsAt != nil && !now.Before(*v.EndsAt)) {
+		return nil, 0, "", fmt.Errorf("voucher belum atau sudah tidak berlaku")
+	}
+	if subtotal < v.MinOrderAmount {
+		return nil, 0, "", fmt.Errorf("minimum transaksi voucher adalah Rp%d", v.MinOrderAmount)
+	}
+	if v.UsageLimit > 0 && v.UsedCount >= v.UsageLimit {
+		return nil, 0, "", fmt.Errorf("kuota voucher sudah habis")
+	}
+	var used int64
+	if err := r.db.Model(&voucherRedemption{}).Where("voucher_id = ? AND user_id = ? AND released_at IS NULL", v.ID, userID).Count(&used).Error; err != nil {
+		return nil, 0, "", err
+	}
+	if v.UsagePerUser > 0 && used >= int64(v.UsagePerUser) {
+		return nil, 0, "", fmt.Errorf("batas penggunaan voucher sudah tercapai")
+	}
+	discount := v.DiscountValue
+	if v.DiscountType == "percentage" {
+		discount = subtotal * v.DiscountValue / 100
+		if v.MaxDiscount > 0 && discount > v.MaxDiscount {
+			discount = v.MaxDiscount
+		}
+	}
+	if discount > subtotal {
+		discount = subtotal
+	}
+	if discount <= 0 {
+		return nil, 0, "", fmt.Errorf("nilai voucher tidak valid")
+	}
+	return &v, discount, code, nil
+}
+
+func (r *repository) PreviewVoucher(c *gin.Context, eventID, userID, code string, subtotal int, now time.Time) (*VoucherPreview, error) {
+	_, discount, normalized, err := r.previewVoucher(c, eventID, userID, code, subtotal, now)
+	if err != nil {
+		return nil, err
+	}
+	return &VoucherPreview{Code: normalized, DiscountAmount: discount}, nil
+}
+
+func (r *repository) redeemVoucherTx(tx *gorm.DB, eventID, userID, orderID, code string, subtotal int, now time.Time) (int, *string, error) {
 	code = strings.ToUpper(strings.TrimSpace(code))
 	if code == "" {
 		return 0, nil, nil
 	}
-	var discount int
-	err := r.db.Transaction(func(tx *gorm.DB) error {
-		var v Voucher
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("target_type = ? AND target_id = ? AND code = ? AND is_active = true", "event", eventID, code).First(&v).Error; err != nil {
-			return fmt.Errorf("voucher tidak ditemukan atau tidak aktif")
+	var v Voucher
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("target_type = ? AND target_id = ? AND code = ? AND is_active = true", "event", eventID, code).First(&v).Error; err != nil {
+		return 0, nil, fmt.Errorf("voucher tidak ditemukan atau tidak aktif")
+	}
+	if (v.StartsAt != nil && now.Before(*v.StartsAt)) || (v.EndsAt != nil && !now.Before(*v.EndsAt)) {
+		return 0, nil, fmt.Errorf("voucher belum atau sudah tidak berlaku")
+	}
+	if subtotal < v.MinOrderAmount {
+		return 0, nil, fmt.Errorf("minimum transaksi voucher adalah Rp%d", v.MinOrderAmount)
+	}
+	if v.UsageLimit > 0 && v.UsedCount >= v.UsageLimit {
+		return 0, nil, fmt.Errorf("kuota voucher sudah habis")
+	}
+	var used int64
+	if err := tx.Model(&voucherRedemption{}).Where("voucher_id = ? AND user_id = ? AND released_at IS NULL", v.ID, userID).Count(&used).Error; err != nil {
+		return 0, nil, err
+	}
+	if v.UsagePerUser > 0 && used >= int64(v.UsagePerUser) {
+		return 0, nil, fmt.Errorf("batas penggunaan voucher sudah tercapai")
+	}
+	discount := v.DiscountValue
+	if v.DiscountType == "percentage" {
+		discount = subtotal * v.DiscountValue / 100
+		if v.MaxDiscount > 0 && discount > v.MaxDiscount {
+			discount = v.MaxDiscount
 		}
-		if (v.StartsAt != nil && now.Before(*v.StartsAt)) || (v.EndsAt != nil && !now.Before(*v.EndsAt)) {
-			return fmt.Errorf("voucher belum atau sudah tidak berlaku")
-		}
-		if subtotal < v.MinOrderAmount {
-			return fmt.Errorf("minimum transaksi voucher adalah Rp%d", v.MinOrderAmount)
-		}
-		if v.UsageLimit > 0 && v.UsedCount >= v.UsageLimit {
-			return fmt.Errorf("kuota voucher sudah habis")
-		}
-		var used int64
-		if err := tx.Model(&voucherRedemption{}).Where("voucher_id = ? AND user_id = ? AND released_at IS NULL", v.ID, userID).Count(&used).Error; err != nil {
-			return err
-		}
-		if v.UsagePerUser > 0 && used >= int64(v.UsagePerUser) {
-			return fmt.Errorf("batas penggunaan voucher sudah tercapai")
-		}
-		if v.DiscountType == "percentage" {
-			discount = subtotal * v.DiscountValue / 100
-			if v.MaxDiscount > 0 && discount > v.MaxDiscount {
-				discount = v.MaxDiscount
-			}
-		} else {
-			discount = v.DiscountValue
-		}
-		if discount > subtotal {
-			discount = subtotal
-		}
-		if discount <= 0 {
-			return fmt.Errorf("nilai voucher tidak valid")
-		}
-		if err := tx.Model(&Voucher{}).Where("id = ?", v.ID).Updates(map[string]interface{}{"used_count": v.UsedCount + 1}).Error; err != nil {
-			return err
-		}
-		return tx.Create(&voucherRedemption{ID: uuid.NewString(), VoucherID: v.ID, OrderID: orderID, UserID: userID, DiscountAmount: discount, CreatedAt: now}).Error
-	})
-	if err != nil {
+	}
+	if discount > subtotal {
+		discount = subtotal
+	}
+	if discount <= 0 {
+		return 0, nil, fmt.Errorf("nilai voucher tidak valid")
+	}
+	if err := tx.Model(&Voucher{}).Where("id = ?", v.ID).Updates(map[string]interface{}{"used_count": v.UsedCount + 1}).Error; err != nil {
+		return 0, nil, err
+	}
+	if err := tx.Create(&voucherRedemption{ID: uuid.NewString(), VoucherID: v.ID, OrderID: orderID, UserID: userID, DiscountAmount: discount, CreatedAt: now}).Error; err != nil {
 		return 0, nil, err
 	}
 	return discount, &code, nil
@@ -151,9 +195,27 @@ func NewRepository(db *gorm.DB) Repository {
 // CreateWithTickets menyimpan order dan tiket-tiketnya secara atomik.
 // Bila salah satu tiket gagal disimpan, order pun dibatalkan sehingga tidak
 // ada order yang tersisa tanpa tiket.
-func (r *repository) CreateWithTickets(c *gin.Context, order *Order, tickets []*user_ticket.UserTicket) (*Order, error) {
+func (r *repository) CreateWithTickets(c *gin.Context, order *Order, tickets []*user_ticket.UserTicket, voucherCode string, ticketSubtotal int, now time.Time) (*Order, error) {
 	err := r.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(order).Error; err != nil {
+			return err
+		}
+		// Order dibuat lebih dahulu dalam transaksi yang sama supaya FK pada
+		// voucher_redemptions selalu valid. Error voucher akan me-roll back
+		// order dan tiket yang baru dibuat ini.
+		discount, code, err := r.redeemVoucherTx(tx, order.EventID, order.UserID, order.ID, voucherCode, ticketSubtotal, now)
+		if err != nil {
+			return err
+		}
+		order.DiscountAmount, order.VoucherCode = discount, code
+		order.Status = DeriveStatus(order.Amount + order.Donation + order.AdminFee - discount)
+		if order.Status == StatusPending {
+			expiresAt := now.Add(30 * time.Minute)
+			order.ExpiredAt = &expiresAt
+		} else {
+			order.ExpiredAt = nil
+		}
+		if err := tx.Model(&Order{}).Where("id = ?", order.ID).Updates(map[string]interface{}{"discount_amount": discount, "voucher_code": code, "status": order.Status, "expired_at": order.ExpiredAt, "updated_at": now}).Error; err != nil {
 			return err
 		}
 		for _, t := range tickets {

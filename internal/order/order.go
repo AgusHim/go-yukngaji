@@ -80,6 +80,17 @@ type CreateOrder struct {
 	VoucherCode     string       `json:"voucher_code"`
 }
 
+type VoucherPreviewRequest struct {
+	EventID     string   `json:"event_id"`
+	TicketIDs   []string `json:"ticket_ids"`
+	VoucherCode string   `json:"voucher_code"`
+}
+
+type VoucherPreview struct {
+	Code           string `json:"code"`
+	DiscountAmount int    `json:"discount_amount"`
+}
+
 type UpdateOrder struct {
 	Status string `json:"status"`
 }
@@ -139,8 +150,8 @@ type UserTicket struct {
 type Repository interface {
 	// CreateWithTickets menyimpan order beserta seluruh tiketnya dalam satu
 	// transaksi, sehingga order tanpa tiket tidak mungkin tersimpan.
-	CreateWithTickets(ctx *gin.Context, order *Order, tickets []*user_ticket.UserTicket) (*Order, error)
-	RedeemVoucher(ctx *gin.Context, orderID, eventID, userID, code string, ticketSubtotal int, now time.Time) (int, *string, error)
+	CreateWithTickets(ctx *gin.Context, order *Order, tickets []*user_ticket.UserTicket, voucherCode string, ticketSubtotal int, now time.Time) (*Order, error)
+	PreviewVoucher(ctx *gin.Context, eventID, userID, code string, ticketSubtotal int, now time.Time) (*VoucherPreview, error)
 	ReleaseVoucher(ctx *gin.Context, orderID string) error
 	ListVouchers(ctx *gin.Context) ([]*Voucher, error)
 	CreateVoucher(ctx *gin.Context, input *VoucherInput) (*Voucher, error)
@@ -173,6 +184,7 @@ type AutoPoster interface {
 
 type Service interface {
 	Create(ctx *gin.Context, req *CreateOrder) (*Order, error)
+	PreviewVoucher(ctx *gin.Context, req *VoucherPreviewRequest) (*VoucherPreview, error)
 	Show(ctx *gin.Context, id string) (*Order, error)
 	ShowByPublicID(ctx *gin.Context, public_id string) (*Order, error)
 	Index(ctx *gin.Context) ([]*Order, error)
@@ -194,6 +206,7 @@ type Service interface {
 
 type Handler interface {
 	Create(ctx *gin.Context)
+	PreviewVoucher(ctx *gin.Context)
 	ShowByPublicID(ctx *gin.Context)
 	Show(ctx *gin.Context)
 	Index(ctx *gin.Context)

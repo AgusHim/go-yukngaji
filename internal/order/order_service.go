@@ -122,6 +122,39 @@ func (s *service) DeleteVoucher(c *gin.Context, id string) error {
 	return s.Repository.DeleteVoucher(c, id)
 }
 
+func (s *service) PreviewVoucher(c *gin.Context, req *VoucherPreviewRequest) (*VoucherPreview, error) {
+	if strings.TrimSpace(req.VoucherCode) == "" {
+		return &VoucherPreview{}, nil
+	}
+	event, err := s.EventService.Show(c, req.EventID)
+	if err != nil {
+		return nil, invalid("event not found")
+	}
+	currentUser, err := s.GetUserIDAuth(c)
+	if err != nil {
+		return nil, err
+	}
+	if len(req.TicketIDs) == 0 {
+		return nil, invalid("pilih minimal satu tiket")
+	}
+	subtotal := 0
+	for _, id := range req.TicketIDs {
+		t, err := s.TicketService.Show(c, id)
+		if err != nil {
+			return nil, invalid("tiket tidak ditemukan")
+		}
+		if t.EventID != event.ID {
+			return nil, invalid("tiket tidak sesuai event")
+		}
+		subtotal += t.Price
+	}
+	preview, err := s.Repository.PreviewVoucher(c, event.ID, currentUser.ID, req.VoucherCode, subtotal, time.Now())
+	if err != nil {
+		return nil, invalid(err.Error())
+	}
+	return preview, nil
+}
+
 // Create membangun order beserta tiketnya.
 //
 // Identitas pembeli selalu diambil dari server (currentUser), bukan dari
@@ -222,11 +255,7 @@ func (s *service) Create(c *gin.Context, req *CreateOrder) (*Order, error) {
 	order.Amount = amounts.TicketTotal
 	order.Donation = amounts.Donation
 	order.AdminFee = amounts.AdminFee
-	order.DiscountAmount, order.VoucherCode, err = s.Repository.RedeemVoucher(c, order.ID, event.ID, currentUser.ID, req.VoucherCode, amounts.TicketTotal, now)
-	if err != nil {
-		return nil, invalid(err.Error())
-	}
-	order.Status = DeriveStatus(amounts.Total - order.DiscountAmount)
+	order.Status = DeriveStatus(amounts.Total)
 	order.ComputeTotal()
 
 	order.CreatedAt = now
@@ -268,10 +297,9 @@ func (s *service) Create(c *gin.Context, req *CreateOrder) (*Order, error) {
 		}))
 	}
 
-	order, err = s.Repository.CreateWithTickets(c, order, tickets)
+	order, err = s.Repository.CreateWithTickets(c, order, tickets, req.VoucherCode, amounts.TicketTotal, now)
 	if err != nil {
-		_ = s.Repository.ReleaseVoucher(c, order.ID)
-		return nil, err
+		return nil, invalid(err.Error())
 	}
 
 	order.UserTickets = tickets

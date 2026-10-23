@@ -41,6 +41,20 @@ func (h *handler) Create(c *gin.Context) {
 	c.JSON(http.StatusOK, res)
 }
 
+func (h *handler) PreviewVoucher(c *gin.Context) {
+	var req VoucherPreviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+	res, err := h.Service.PreviewVoucher(c, &req)
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
 func (h *handler) Show(c *gin.Context) {
 	id := c.Param("id")
 	res, err := h.Service.Show(c, id)

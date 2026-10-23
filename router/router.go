@@ -177,6 +177,7 @@ func InitRouter(
 
 	/* Orders */
 	user_api.GET("/orders", authMiddleware.AuthUser, orderHandler.Index)
+	user_api.POST("/orders/voucher-preview", authMiddleware.AuthUser, orderHandler.PreviewVoucher)
 	user_api.POST("/orders", authMiddleware.AuthUser, orderHandler.Create)
 	user_api.GET("/orders/:public_id", authMiddleware.AuthUser, orderHandler.ShowByPublicID)
 	admin_api.GET("/orders", authMiddleware.AuthAdmin, orderHandler.IndexAdmin)
