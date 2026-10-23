@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"mainyuk/internal/shopee"
@@ -72,6 +73,11 @@ type Service struct {
 	settler  Settler
 	eligible Eligibility
 	interval time.Duration
+	notifier interface {
+		Notify(context.Context, string) error
+	}
+	notifyMu          sync.Mutex
+	lastFailureNotice time.Time
 }
 
 func New(database *gorm.DB, provider *shopee.Service) *Service {
@@ -80,6 +86,9 @@ func New(database *gorm.DB, provider *shopee.Service) *Service {
 
 func (s *Service) SetSettler(settler Settler)          { s.settler = settler }
 func (s *Service) SetEligibility(eligible Eligibility) { s.eligible = eligible }
+func (s *Service) SetNotifier(notifier interface {
+	Notify(context.Context, string) error
+}) { s.notifier = notifier }
 
 // Validate memastikan migrasi yang dibutuhkan sudah diterapkan. Integrasi
 // pembayaran tidak boleh tampak aktif ketika worker sebenarnya hanya akan
@@ -283,6 +292,37 @@ func (s *Service) run(ctx context.Context) {
 	s.shopee.SetAutoValidation(s.shopee.Configured())
 	if err := s.Reconcile(ctx); err != nil {
 		log.Printf("[shopee-qris] rekonsiliasi gagal: %v", err)
+		s.notifyFailure(ctx, err)
+	}
+}
+
+func (s *Service) notifyFailure(ctx context.Context, err error) {
+	if s.notifier == nil || err == nil {
+		return
+	}
+	s.notifyMu.Lock()
+	if time.Since(s.lastFailureNotice) < 5*time.Minute {
+		s.notifyMu.Unlock()
+		return
+	}
+	s.lastFailureNotice = time.Now()
+	s.notifyMu.Unlock()
+	if notifyErr := s.notifier.Notify(ctx, "⚠️ Shopee QRIS: pengecekan mutasi gagal\n"+err.Error()+"\nWorker akan mencoba lagi otomatis."); notifyErr != nil {
+		log.Printf("[telegram] gagal mengirim alert QRIS: %v", notifyErr)
+	}
+}
+
+func (s *Service) notifySettlement(ctx context.Context, charge *Charge) {
+	if s.notifier == nil || charge == nil {
+		return
+	}
+	ref := "-"
+	if charge.ShopeeTransactionID != nil {
+		ref = *charge.ShopeeTransactionID
+	}
+	text := fmt.Sprintf("✅ Transaksi QRIS masuk\nJenis: %s\nID transaksi: %s\nNominal: Rp%d\nReferensi Shopee: %s", charge.EntityType, charge.EntityID, charge.PayableAmount, ref)
+	if err := s.notifier.Notify(ctx, text); err != nil {
+		log.Printf("[telegram] gagal mengirim log transaksi QRIS: %v", err)
 	}
 }
 
@@ -395,6 +435,9 @@ func (s *Service) settleReady(ctx context.Context) error {
 		}
 		if err != nil {
 			log.Printf("[shopee-qris] settlement %s/%s gagal (akan dicoba ulang): %v", charge.EntityType, charge.EntityID, err)
+			s.notifyFailure(ctx, fmt.Errorf("settlement %s/%s gagal: %w", charge.EntityType, charge.EntityID, err))
+		} else {
+			s.notifySettlement(ctx, charge)
 		}
 	}
 }

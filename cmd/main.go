@@ -30,6 +30,7 @@ import (
 	"mainyuk/internal/shop"
 	"mainyuk/internal/shopee"
 	"mainyuk/internal/shopee_qris"
+	"mainyuk/internal/telegram"
 	"mainyuk/internal/thread"
 	"mainyuk/internal/ticket"
 	"mainyuk/internal/user"
@@ -118,6 +119,7 @@ func main() {
 	paymentMethodHandler := payment_method.NewHandler(paymentMethodService)
 	shopeeService := shopee.NewFromEnv()
 	shopeeQRISService := shopee_qris.New(db, shopeeService)
+	shopeeQRISService.SetNotifier(telegram.NewFromEnv())
 	if err := shopeeQRISService.Validate(context.Background()); err != nil {
 		log.Fatalf("Shopee QRIS tidak dapat dimulai: %v", err)
 	}
