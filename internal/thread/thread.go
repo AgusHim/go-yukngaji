@@ -210,7 +210,9 @@ type ThreadCommentView struct {
 // CreateThread adalah payload pembuatan thread. Tidak ada user_id: identitas
 // selalu diambil dari konteks auth, tidak pernah dari body.
 type CreateThread struct {
-	Title string `json:"title" binding:"required"`
+	// Title dipertahankan untuk auto-post dan kompatibilitas API lama. Kiriman
+	// manual boleh tidak mengirim judul; server akan menyimpan judul internal.
+	Title string `json:"title"`
 	Body  string `json:"body" binding:"required"`
 }
 

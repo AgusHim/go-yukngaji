@@ -22,6 +22,11 @@ import (
 // detail mengirim badan penuh; daftar tidak perlu mengangkut seluruh kiriman.
 const feedExcerptLen = 220
 
+// manualThreadTitle adalah judul internal untuk kiriman manual tanpa judul.
+// UI komunitas menampilkan isi kiriman langsung seperti percakapan, sementara
+// kolom title tetap ada demi kompatibilitas schema dan auto-post lama.
+const manualThreadTitle = "Kiriman komunitas"
+
 // noteMaxLen adalah batas panjang catatan pada laporan.
 const noteMaxLen = 500
 
@@ -246,6 +251,9 @@ func (s *service) CreateThread(c *gin.Context, req *CreateThread) (*ThreadView, 
 	// validasi sama persis dengan yang dilihat constraint database.
 	title := NormalizeContent(req.Title)
 	body := NormalizeContent(req.Body)
+	if title == "" {
+		title = manualThreadTitle
+	}
 	if err := CheckThreadContent(title, body); err != nil {
 		return nil, err
 	}
