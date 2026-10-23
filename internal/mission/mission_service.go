@@ -103,7 +103,7 @@ func (s *service) toView(m *Mission, now time.Time) *MissionView {
 	return &MissionView{
 		Mission:          m,
 		CurrentPeriodKey: PeriodKey(m.Type, now),
-		CanClaimNow:      ClaimWindowOpen(now, m.StartsAt, m.EndsAt, m.IsPublished),
+		CanClaimNow:      ClaimWindowOpen(now, m.StartsAt, m.EndsAt, m.IsPublished) && SubuhClaimWindow(m.Code, now),
 		RequiredProof:    RequiredProof(m.VerificationMode),
 	}
 }
@@ -133,6 +133,9 @@ func (s *service) Claim(c *gin.Context, missionID string, req *ClaimMission) (*M
 	now := time.Now()
 	if !ClaimWindowOpen(now, mission.StartsAt, mission.EndsAt, mission.IsPublished) {
 		return nil, ErrClaimWindowClosed
+	}
+	if !SubuhClaimWindow(mission.Code, now) {
+		return nil, invalid("misi Subuh hanya dapat diklaim pukul 04.00–06.00 WIB")
 	}
 
 	var proofURL, proofNote *string

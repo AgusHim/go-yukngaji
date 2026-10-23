@@ -1144,6 +1144,12 @@ func (s *service) attachDonationCharge(c *gin.Context, donation *Donation, view 
 	}
 	charge, err := payment.LookupCharge(c, s.Provider, "donation", donation.ID)
 	if err != nil {
+		// Donasi lama atau pembayaran manual tidak selalu memiliki baris charge
+		// QRIS. Daftar riwayat tetap harus bisa dimuat; charge bersifat pelengkap
+		// untuk nominal unik, bukan syarat keberadaan donasi.
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
 		return err
 	}
 	view.Charge = charge

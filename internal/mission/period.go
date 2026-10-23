@@ -2,10 +2,27 @@ package mission
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"mainyuk/internal/period"
 )
+
+const (
+	CodeSubuhJamaah  = "daily_subuh_jamaah"
+	CodeSedekahSubuh = "daily_sedekah_subuh"
+)
+
+// SubuhClaimWindow membatasi dua amalan Subuh ke pukul 04.00–06.00 WIB.
+// Batas ini memakai Asia/Jakarta secara konsisten dengan period_key harian.
+func SubuhClaimWindow(code string, now time.Time) bool {
+	if code != CodeSubuhJamaah && code != CodeSedekahSubuh {
+		return true
+	}
+	local := now.In(period.JakartaLocation)
+	minutes := local.Hour()*60 + local.Minute()
+	return minutes >= 4*60 && minutes < 6*60
+}
 
 // PeriodKey menghitung kunci periode sebuah misi pada satu titik waktu.
 //
@@ -46,6 +63,10 @@ func ClaimWindowOpen(now, startsAt, endsAt time.Time, isPublished bool) bool {
 	// ends_at bersifat eksklusif: misi yang berakhir pukul 23:59 tidak dapat
 	// diklaim pada pukul 23:59:00 berikutnya.
 	return now.Before(endsAt)
+}
+
+func IsSubuhDailyMission(code string) bool {
+	return strings.TrimSpace(code) == CodeSubuhJamaah || strings.TrimSpace(code) == CodeSedekahSubuh
 }
 
 // CanClaim melaporkan apakah jumlah klaim aktif masih di bawah batas.
