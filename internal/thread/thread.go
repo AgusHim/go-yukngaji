@@ -12,6 +12,7 @@ import (
 
 	"mainyuk/internal/audit"
 	"mainyuk/internal/community"
+	"mainyuk/internal/gamification"
 
 	"github.com/gin-gonic/gin"
 )
@@ -176,6 +177,8 @@ type ThreadAuthor struct {
 	Alias      string  `json:"alias"`
 	AvatarURL  *string `json:"avatar_url"`
 	ShowBadges bool    `json:"show_badges"`
+	Level      int     `json:"level,omitempty"`
+	LevelName  string  `json:"level_name,omitempty"`
 }
 
 // ThreadView adalah bentuk thread untuk jalur publik.
@@ -361,6 +364,10 @@ type Repository interface {
 	SoftDeleteThreadsBySource(ctx *gin.Context, userID, sourceType string) (int64, error)
 	AdjustThreadCounters(ctx *gin.Context, id string, commentDelta, reactionDelta int) error
 	ReactionsByUser(ctx *gin.Context, userID string, threadIDs []string) (map[string]bool, error)
+	// AuthorXP mengambil total XP untuk sekumpulan penulis dalam satu query,
+	// sehingga feed tidak mengalami N+1 query ketika menampilkan level.
+	AuthorXP(ctx *gin.Context, userIDs []string) (map[string]int, error)
+	LevelRules(ctx *gin.Context) ([]*gamification.LevelRule, error)
 
 	// Komentar
 	CreateComment(ctx *gin.Context, cm *ThreadComment) error

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"mainyuk/internal/audit"
+	"mainyuk/internal/gamification"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -24,6 +25,38 @@ type repository struct {
 
 func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db, audit: audit.NewRecorder(db)}
+}
+
+// AuthorXP menjumlahkan seluruh ledger, bukan hanya periode leaderboard.
+// Level di profil komunitas selalu merepresentasikan total XP akun.
+func (r *repository) AuthorXP(c *gin.Context, userIDs []string) (map[string]int, error) {
+	result := make(map[string]int, len(userIDs))
+	if len(userIDs) == 0 {
+		return result, nil
+	}
+	rows := []struct {
+		UserID string `gorm:"column:user_id"`
+		Total  int    `gorm:"column:total"`
+	}{}
+	if err := r.db.Table("xp_ledger").
+		Select("user_id, COALESCE(SUM(delta), 0) AS total").
+		Where("user_id IN ?", userIDs).
+		Group("user_id").
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		result[row.UserID] = row.Total
+	}
+	return result, nil
+}
+
+func (r *repository) LevelRules(c *gin.Context) ([]*gamification.LevelRule, error) {
+	rules := []*gamification.LevelRule{}
+	if err := r.db.Order("level ASC").Find(&rules).Error; err != nil {
+		return nil, err
+	}
+	return rules, nil
 }
 
 // ---------------------------------------------------------------------------

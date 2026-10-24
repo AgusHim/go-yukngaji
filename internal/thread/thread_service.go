@@ -115,11 +115,11 @@ func notFoundAs(err error, sentinel error) error {
 
 // toThreadView adalah satu-satunya tempat ThreadView disusun, supaya tidak ada
 // jalur yang lupa memakai ToThreadAuthor.
-func (s *service) toThreadView(t *Thread, profile *community.Profile, viewerID string, reacted bool, excerpt bool) *ThreadView {
+func (s *service) toThreadView(t *Thread, author *ThreadAuthor, viewerID string, reacted bool, excerpt bool) *ThreadView {
 	view := &ThreadView{
 		PublicID:      t.PublicID,
 		Title:         t.Title,
-		Author:        ToThreadAuthor(profile),
+		Author:        author,
 		Status:        t.Status,
 		SourceType:    t.SourceType,
 		CommentCount:  t.CommentCount,
@@ -136,11 +136,11 @@ func (s *service) toThreadView(t *Thread, profile *community.Profile, viewerID s
 	return view
 }
 
-func (s *service) toCommentView(cm *ThreadComment, profile *community.Profile, viewerID string) *ThreadCommentView {
+func (s *service) toCommentView(cm *ThreadComment, author *ThreadAuthor, viewerID string) *ThreadCommentView {
 	return &ThreadCommentView{
 		PublicID:  cm.PublicID,
 		Body:      cm.Body,
-		Author:    ToThreadAuthor(profile),
+		Author:    author,
 		Status:    cm.Status,
 		IsMine:    viewerID != "" && viewerID == cm.UserID,
 		CreatedAt: cm.CreatedAt,
@@ -151,6 +151,32 @@ func (s *service) toCommentView(cm *ThreadComment, profile *community.Profile, v
 // belum punya profil tidak muncul di peta hasil dan tampil sebagai anonim.
 func (s *service) profilesFor(c *gin.Context, userIDs []string) (map[string]*community.Profile, error) {
 	return s.authors.ProfilesOf(c, userIDs)
+}
+
+// authorsFor menyusun identitas publik dan level penulis secara batch. Alias
+// tetap satu-satunya nama yang boleh masuk ke feed; level tidak dikirim bila
+// profil sengaja dianonimkan.
+func (s *service) authorsFor(c *gin.Context, userIDs []string, profiles map[string]*community.Profile) (map[string]*ThreadAuthor, error) {
+	totals, err := s.Repository.AuthorXP(c, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	rules, err := s.Repository.LevelRules(c)
+	if err != nil {
+		return nil, err
+	}
+	levels := gamification.ToLevelViews(rules)
+	authors := make(map[string]*ThreadAuthor, len(userIDs))
+	for _, userID := range userIDs {
+		author := ToThreadAuthor(profiles[userID])
+		if author.Alias != AnonymousAuthorName {
+			level := gamification.ResolveLevel(levels, totals[userID])
+			author.Level = level.Level
+			author.LevelName = level.Name
+		}
+		authors[userID] = author
+	}
+	return authors, nil
 }
 
 func collectUserIDs(threads []*Thread) []string {
@@ -188,6 +214,11 @@ func (s *service) ListThreads(c *gin.Context, sort string, page, perPage int) ([
 	if err != nil {
 		return nil, false, err
 	}
+	authorIDs := collectUserIDs(rows)
+	authors, err := s.authorsFor(c, authorIDs, profiles)
+	if err != nil {
+		return nil, false, err
+	}
 
 	viewerID := currentUserID(c)
 	reacted, err := s.Repository.ReactionsByUser(c, viewerID, threadIDs(rows))
@@ -197,7 +228,7 @@ func (s *service) ListThreads(c *gin.Context, sort string, page, perPage int) ([
 
 	views := make([]*ThreadView, 0, len(rows))
 	for _, t := range rows {
-		views = append(views, s.toThreadView(t, profiles[t.UserID], viewerID, reacted[t.ID], true))
+		views = append(views, s.toThreadView(t, authors[t.UserID], viewerID, reacted[t.ID], true))
 	}
 	return views, hasMore, nil
 }
@@ -235,7 +266,11 @@ func (s *service) ShowThread(c *gin.Context, publicID string) (*ThreadView, erro
 	if err != nil {
 		return nil, err
 	}
-	return s.toThreadView(t, profile, viewerID, reacted[t.ID], false), nil
+	authors, err := s.authorsFor(c, []string{t.UserID}, profiles)
+	if err != nil {
+		return nil, err
+	}
+	return s.toThreadView(t, authors[t.UserID], viewerID, reacted[t.ID], false), nil
 }
 
 func (s *service) CreateThread(c *gin.Context, req *CreateThread) (*ThreadView, error) {
@@ -272,7 +307,11 @@ func (s *service) CreateThread(c *gin.Context, req *CreateThread) (*ThreadView, 
 	if err := s.Repository.CreateThread(c, t); err != nil {
 		return nil, err
 	}
-	return s.toThreadView(t, profile, userID, false, false), nil
+	authors, err := s.authorsFor(c, []string{userID}, map[string]*community.Profile{userID: profile})
+	if err != nil {
+		return nil, err
+	}
+	return s.toThreadView(t, authors[userID], userID, false, false), nil
 }
 
 // DeleteThread menghapus thread milik pemanggil.
@@ -323,11 +362,15 @@ func (s *service) ListComments(c *gin.Context, threadPublicID string, page, perP
 	if err != nil {
 		return nil, false, err
 	}
+	authors, err := s.authorsFor(c, authorIDs, profiles)
+	if err != nil {
+		return nil, false, err
+	}
 
 	viewerID := currentUserID(c)
 	views := make([]*ThreadCommentView, 0, len(rows))
 	for _, cm := range rows {
-		views = append(views, s.toCommentView(cm, profiles[cm.UserID], viewerID))
+		views = append(views, s.toCommentView(cm, authors[cm.UserID], viewerID))
 	}
 	return views, hasMore, nil
 }
@@ -370,7 +413,11 @@ func (s *service) CreateComment(c *gin.Context, threadPublicID string, req *Crea
 		// membatalkan komentar yang sah. Dilaporkan supaya bisa diperbaiki.
 		log.Printf("[thread] gagal menambah comment_count thread %s: %v", t.ID, err)
 	}
-	return s.toCommentView(cm, profile, userID), nil
+	authors, err := s.authorsFor(c, []string{userID}, map[string]*community.Profile{userID: profile})
+	if err != nil {
+		return nil, err
+	}
+	return s.toCommentView(cm, authors[userID], userID), nil
 }
 
 func (s *service) DeleteComment(c *gin.Context, threadPublicID, commentPublicID string) error {
@@ -953,7 +1000,7 @@ func (s *service) ListThreadsForReview(c *gin.Context, status string, page, perP
 
 	views := make([]*ThreadView, 0, len(rows))
 	for _, t := range rows {
-		view := s.toThreadView(t, profiles[t.UserID], "", false, true)
+		view := s.toThreadView(t, ToThreadAuthor(profiles[t.UserID]), "", false, true)
 		// Antrean moderasi memakai aturan penamaan petugas: alias tetap
 		// terlihat walaupun profil penulisnya privat atau terblokir.
 		author, err := s.moderationAuthor(c, t.UserID)

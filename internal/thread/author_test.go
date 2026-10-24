@@ -20,34 +20,34 @@ func TestThreadAuthorName(t *testing.T) {
 			want:    AnonymousAuthorName,
 		},
 		{
-			name:    "alias kosong",
-			profile: &community.Profile{Alias: strPtr("")},
+			name:    "username kosong",
+			profile: &community.Profile{Username: ""},
 			want:    AnonymousAuthorName,
 		},
 		{
-			name:    "alias berisi spasi saja",
-			profile: &community.Profile{Alias: strPtr("   \t ")},
+			name:    "username berisi spasi saja",
+			profile: &community.Profile{Username: "   \t "},
 			want:    AnonymousAuthorName,
 		},
 		{
-			name:    "alias belum diisi sama sekali",
+			name:    "username belum diisi sama sekali",
 			profile: &community.Profile{},
 			want:    AnonymousAuthorName,
 		},
 		{
-			name:    "alias terisi",
-			profile: &community.Profile{Alias: strPtr("Ranger Senja")},
+			name:    "username terisi",
+			profile: &community.Profile{Username: "Ranger Senja"},
 			want:    "Ranger Senja",
 		},
 		{
-			name:    "alias terisi dengan spasi tepi",
-			profile: &community.Profile{Alias: strPtr("  Ranger Senja  ")},
+			name:    "username terisi dengan spasi tepi",
+			profile: &community.Profile{Username: "  Ranger Senja  "},
 			want:    "Ranger Senja",
 		},
 		{
 			name: "akun terblokir",
 			profile: &community.Profile{
-				Alias:     strPtr("Ranger Senja"),
+				Username:  "Ranger Senja",
 				IsBlocked: true,
 			},
 			want: AnonymousAuthorName,
@@ -55,7 +55,7 @@ func TestThreadAuthorName(t *testing.T) {
 		{
 			name: "profil privat",
 			profile: &community.Profile{
-				Alias:             strPtr("Ranger Senja"),
+				Username:          "Ranger Senja",
 				ProfileVisibility: community.VisibilityPrivate,
 			},
 			want: AnonymousAuthorName,
@@ -63,7 +63,7 @@ func TestThreadAuthorName(t *testing.T) {
 		{
 			name: "profil members tetap tampil",
 			profile: &community.Profile{
-				Alias:             strPtr("Ranger Senja"),
+				Username:          "Ranger Senja",
 				ProfileVisibility: community.VisibilityMembers,
 			},
 			want: "Ranger Senja",
@@ -71,7 +71,7 @@ func TestThreadAuthorName(t *testing.T) {
 		{
 			name: "profil publik tetap tampil",
 			profile: &community.Profile{
-				Alias:             strPtr("Ranger Senja"),
+				Username:          "Ranger Senja",
 				ProfileVisibility: community.VisibilityPublic,
 			},
 			want: "Ranger Senja",
@@ -109,7 +109,7 @@ func TestToThreadAuthor(t *testing.T) {
 	t.Run("profil privat menyembunyikan avatar", func(t *testing.T) {
 		author := ToThreadAuthor(&community.Profile{
 			PublicID:          "abc123",
-			Alias:             strPtr("Ranger Senja"),
+			Username:          "Ranger Senja",
 			AvatarURL:         &avatar,
 			ProfileVisibility: community.VisibilityPrivate,
 		})
@@ -127,7 +127,7 @@ func TestToThreadAuthor(t *testing.T) {
 	t.Run("akun terblokir menyembunyikan avatar", func(t *testing.T) {
 		author := ToThreadAuthor(&community.Profile{
 			PublicID:  "abc123",
-			Alias:     strPtr("Ranger Senja"),
+			Username:  "Ranger Senja",
 			AvatarURL: &avatar,
 			IsBlocked: true,
 		})
@@ -136,7 +136,7 @@ func TestToThreadAuthor(t *testing.T) {
 		}
 	})
 
-	t.Run("alias kosong menyembunyikan avatar", func(t *testing.T) {
+	t.Run("username kosong menyembunyikan avatar", func(t *testing.T) {
 		author := ToThreadAuthor(&community.Profile{
 			PublicID:  "abc123",
 			AvatarURL: &avatar,
@@ -149,7 +149,7 @@ func TestToThreadAuthor(t *testing.T) {
 	t.Run("profil publik meneruskan seluruh field", func(t *testing.T) {
 		author := ToThreadAuthor(&community.Profile{
 			PublicID:   "abc123",
-			Alias:      strPtr("Ranger Senja"),
+			Username:   "Ranger Senja",
 			AvatarURL:  &avatar,
 			ShowBadges: true,
 		})

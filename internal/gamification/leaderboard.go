@@ -10,7 +10,7 @@ import (
 // diresolusi dan peringkat ditetapkan.
 type LeaderboardRow struct {
 	PublicID      string    `gorm:"column:public_id"`
-	Alias         *string   `gorm:"column:alias"`
+	Username      string    `gorm:"column:username"`
 	AvatarURL     *string   `gorm:"column:avatar_url"`
 	ShowBadges    bool      `gorm:"column:show_badges"`
 	NetXP         int       `gorm:"column:net_xp"`

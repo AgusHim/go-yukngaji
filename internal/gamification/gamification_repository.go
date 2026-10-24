@@ -270,12 +270,12 @@ func (r *repository) Leaderboard(c *gin.Context, from, to *time.Time, limit, off
 	rows := []*LeaderboardRow{}
 
 	query := r.db.Table("xp_ledger AS l").
-		Select(`cp.public_id, cp.alias, cp.avatar_url, cp.show_badges,
+		Select(`cp.public_id, u.username, cp.avatar_url, cp.show_badges,
 		        SUM(l.delta) AS net_xp, MIN(l.created_at) AS first_earned_at`).
 		Joins("JOIN users u ON u.id = l.user_id AND u.deleted_at IS NULL AND u.role IN ('user', 'jamaah')").
 		Joins("JOIN community_profiles cp ON cp.user_id = l.user_id").
 		Where("cp.leaderboard_opt_out = false AND cp.is_blocked = false").
-		Group("cp.public_id, cp.alias, cp.avatar_url, cp.show_badges, l.user_id").
+		Group("cp.public_id, u.username, cp.avatar_url, cp.show_badges, l.user_id").
 		Order("net_xp DESC, first_earned_at ASC, l.user_id ASC").
 		Limit(limit).
 		Offset(offset)

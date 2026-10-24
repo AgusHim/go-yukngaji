@@ -18,7 +18,10 @@ const (
 // public_id adalah satu-satunya identifier yang boleh dikirim ke response
 // publik. UserID (id akun internal) tidak pernah disertakan pada DTO publik.
 type Profile struct {
-	UserID            string    `json:"user_id" gorm:"column:user_id;primaryKey"`
+	UserID string `json:"user_id" gorm:"column:user_id;primaryKey"`
+	// Username berasal dari tabel users melalui query baca; tidak pernah
+	// dimigrasikan ke community_profiles atau diserialisasi sebagai profil.
+	Username          string    `json:"-" gorm:"column:username;->;-:migration"`
 	PublicID          string    `json:"public_id" gorm:"column:public_id"`
 	Alias             *string   `json:"alias" gorm:"column:alias"`
 	Bio               *string   `json:"bio" gorm:"column:bio"`

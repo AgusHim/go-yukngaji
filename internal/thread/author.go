@@ -9,15 +9,16 @@ import (
 // Satu titik penegakan identitas untuk seluruh paket ini.
 //
 // Aturan mainnya: tidak ada permukaan publik yang boleh menampilkan apa pun
-// selain alias. Bila aliasnya kosong, penulisnya privat, atau akunnya
-// terblokir, nama tampilnya "Anonim" — bukan nama akun.
+// selain username. Username akun pada sistem ini adalah nama samaran yang
+// dipilih anggota. Bila username kosong, penulisnya privat, atau akunnya
+// terblokir, nama tampilnya "Anonim".
 //
 // Perbedaan penting dengan community.Profile.DisplayAlias: fungsi itu menerima
 // nama akun sebagai fallback, sehingga akun tanpa alias tampil dengan nama
 // aslinya. Di sini fallback itu tidak ada sama sekali, dan memang tidak boleh
 // ada — kalau ada satu saja jalur yang memakainya, feed ini bukan feed anonim.
 
-// ThreadAuthorName menentukan nama tampil penulis.
+// ThreadAuthorName menentukan nama tampil penulis dari username akun.
 func ThreadAuthorName(p *community.Profile) string {
 	if p == nil {
 		return AnonymousAuthorName
@@ -28,11 +29,11 @@ func ThreadAuthorName(p *community.Profile) string {
 	if p.ProfileVisibility == community.VisibilityPrivate {
 		return AnonymousAuthorName
 	}
-	alias := strings.TrimSpace(derefString(p.Alias))
-	if alias == "" {
+	username := strings.TrimSpace(p.Username)
+	if username == "" {
 		return AnonymousAuthorName
 	}
-	return alias
+	return username
 }
 
 // ToThreadAuthor menyusun bentuk publik penulis.
@@ -42,7 +43,7 @@ func ThreadAuthorName(p *community.Profile) string {
 // Keputusan itu ada di sini, satu kali.
 //
 // Avatar ikut disembunyikan ketika penulisnya dianonimkan: avatar adalah
-// pengait identitas yang sama kuatnya dengan nama.
+// pengait identitas yang sama kuatnya dengan username.
 func ToThreadAuthor(p *community.Profile) *ThreadAuthor {
 	name := ThreadAuthorName(p)
 

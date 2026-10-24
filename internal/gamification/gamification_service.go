@@ -637,7 +637,7 @@ func (s *service) Leaderboard(c *gin.Context, periodKey string, page, perPage in
 		entry := &LeaderboardEntry{
 			Rank:      (page-1)*perPage + i + 1,
 			PublicID:  row.PublicID,
-			Alias:     displayAlias(row.Alias),
+			Alias:     displayUsername(row.Username),
 			AvatarURL: row.AvatarURL,
 			Level:     level.Level,
 			LevelName: level.Name,
@@ -663,6 +663,13 @@ func (s *service) Leaderboard(c *gin.Context, periodKey string, page, perPage in
 func displayAlias(alias *string) string {
 	if alias != nil && strings.TrimSpace(*alias) != "" {
 		return *alias
+	}
+	return "Anggota"
+}
+
+func displayUsername(username string) string {
+	if strings.TrimSpace(username) != "" {
+		return username
 	}
 	return "Anggota"
 }

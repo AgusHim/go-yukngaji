@@ -34,7 +34,7 @@ func (r *repository) Ensure(c *gin.Context, userID string) (*Profile, error) {
 
 func (r *repository) FindByUserID(c *gin.Context, userID string) (*Profile, error) {
 	profile := &Profile{}
-	err := r.db.Where("user_id = ?", userID).First(profile).Error
+	err := r.profileQuery().Where("cp.user_id = ?", userID).Take(profile).Error
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (r *repository) FindByUserID(c *gin.Context, userID string) (*Profile, erro
 
 func (r *repository) FindByPublicID(c *gin.Context, publicID string) (*Profile, error) {
 	profile := &Profile{}
-	err := r.db.Where("public_id = ?", publicID).First(profile).Error
+	err := r.profileQuery().Where("cp.public_id = ?", publicID).Take(profile).Error
 	if err != nil {
 		return nil, err
 	}
@@ -72,13 +72,19 @@ func (r *repository) ProfilesOf(c *gin.Context, userIDs []string) (map[string]*P
 	}
 
 	rows := []*Profile{}
-	if err := r.db.Where("user_id IN ?", userIDs).Find(&rows).Error; err != nil {
+	if err := r.profileQuery().Where("cp.user_id IN ?", userIDs).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	for _, p := range rows {
 		profiles[p.UserID] = p
 	}
 	return profiles, nil
+}
+
+func (r *repository) profileQuery() *gorm.DB {
+	return r.db.Table("community_profiles AS cp").
+		Select("cp.*, u.username").
+		Joins("JOIN users u ON u.id = cp.user_id AND u.deleted_at IS NULL")
 }
 
 // SetBlocked memakai syarat is_blocked = !blocked supaya permintaan yang tidak
