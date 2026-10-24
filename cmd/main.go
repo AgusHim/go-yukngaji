@@ -118,8 +118,13 @@ func main() {
 	paymentMethodService := payment_method.NewService(paymentMethodRepository)
 	paymentMethodHandler := payment_method.NewHandler(paymentMethodService)
 	shopeeService := shopee.NewFromEnv()
+	shopeeService.SetDatabase(db)
+	if err := shopeeService.LoadSessionSettings(); err != nil {
+		log.Printf("[shopee] sesi tersimpan tidak dapat dimuat: %v", err)
+	}
+	telegramNotifier := telegram.NewFromEnv()
 	shopeeQRISService := shopee_qris.New(db, shopeeService)
-	shopeeQRISService.SetNotifier(telegram.NewFromEnv())
+	shopeeQRISService.SetNotifier(telegramNotifier)
 	if err := shopeeQRISService.Validate(context.Background()); err != nil {
 		log.Fatalf("Shopee QRIS tidak dapat dimulai: %v", err)
 	}
@@ -236,6 +241,7 @@ func main() {
 	// Auto-post aktivitas ke feed. Dipasang setelah threadService ada, dan
 	// kegagalannya tidak pernah menggagalkan aksi sumbernya.
 	orderService.SetAutoPoster(threadService)
+	orderService.SetNotifier(telegramNotifier)
 	fundraisingService.SetAutoPoster(threadService)
 	missionService.SetAutoPoster(threadService)
 

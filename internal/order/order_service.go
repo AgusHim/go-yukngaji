@@ -3,6 +3,7 @@ package order
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 
 	"mainyuk/internal/apperr"
@@ -30,12 +31,47 @@ type service struct {
 	Provider          payment.Provider
 	// poster boleh nil; nil berarti aktivitas pendaftaran tidak dibagikan ke
 	// feed, seperti sebelum Fase 3.
-	poster AutoPoster
+	poster   AutoPoster
+	notifier Notifier
 }
 
 // SetAutoPoster memasang peniti aktivitas ke feed komunitas.
 func (s *service) SetAutoPoster(poster AutoPoster) {
 	s.poster = poster
+}
+
+func (s *service) SetNotifier(notifier Notifier) { s.notifier = notifier }
+
+func (s *service) notifyNewOrder(c *gin.Context, order *Order, eventTitle string) {
+	if s.notifier == nil || order == nil {
+		return
+	}
+	voucher := "-"
+	if order.VoucherCode != nil {
+		voucher = *order.VoucherCode
+	}
+	text := fmt.Sprintf("🧾 Order event masuk\nInvoice: #%s\nEvent: %s\nTiket: %d\nTotal: Rp%d\nStatus: %s\nVoucher: %s", order.PublicID, eventTitle, len(order.UserTickets), order.Total, order.Status, voucher)
+	ctx := context.Background()
+	if c != nil && c.Request != nil {
+		ctx = c.Request.Context()
+	}
+	if err := s.notifier.Notify(ctx, text); err != nil {
+		log.Printf("[telegram] gagal mengirim log order %s: %v", order.ID, err)
+	}
+}
+
+func (s *service) notifyOrderStatus(c *gin.Context, order *Order, eventTitle string) {
+	if s.notifier == nil || order == nil {
+		return
+	}
+	ctx := context.Background()
+	if c != nil && c.Request != nil {
+		ctx = c.Request.Context()
+	}
+	text := fmt.Sprintf("%s Status order diperbarui\nInvoice: #%s\nEvent: %s\nTotal: Rp%d\nStatus: %s", map[string]string{StatusPaid: "✅", StatusExpired: "⌛"}[order.Status], order.PublicID, eventTitle, order.Total, order.Status)
+	if err := s.notifier.Notify(ctx, text); err != nil {
+		log.Printf("[telegram] gagal mengirim status order %s: %v", order.ID, err)
+	}
 }
 
 // postRegistration menitipkan pendaftaran ke feed.
@@ -310,7 +346,12 @@ func (s *service) Create(c *gin.Context, req *CreateOrder) (*Order, error) {
 	if order.Status == StatusPaid {
 		s.postRegistration(c, currentUser.ID, order.ID, event.Title)
 	}
-	return s.attachCharge(c, order)
+	order, err = s.attachCharge(c, order)
+	if err != nil {
+		return nil, err
+	}
+	s.notifyNewOrder(c, order, event.Title)
+	return order, nil
 }
 
 func (s *service) Show(c *gin.Context, id string) (*Order, error) {
@@ -472,6 +513,9 @@ func (s *service) VerifyOrder(c *gin.Context, id string, status string) (*Order,
 		// boleh meninggalkan postingan pendaftaran di feed.
 		s.removeRegistration(c, order.ID)
 	}
+	if target == StatusPaid || target == StatusExpired {
+		s.notifyOrderStatus(c, order, s.eventTitle(c, order.EventID))
+	}
 	return order, nil
 }
 
@@ -500,6 +544,9 @@ func (s *service) ConfirmShopeePayment(c *gin.Context, id string, paidAmount int
 		}
 	}
 	s.postRegistration(c, value.UserID, value.ID, s.eventTitle(c, value.EventID))
+	value.Status = StatusPaid
+	value.ComputeTotal()
+	s.notifyOrderStatus(c, value, s.eventTitle(c, value.EventID))
 	return nil
 }
 
@@ -531,6 +578,11 @@ func (s *service) StartExpiryWorker(ctx context.Context) {
 		}
 		if count > 0 {
 			log.Printf("[order] %d order pending diubah menjadi expired", count)
+			if s.notifier != nil {
+				if notifyErr := s.notifier.Notify(context.Background(), fmt.Sprintf("⌛ %d order pending otomatis kedaluwarsa", count)); notifyErr != nil {
+					log.Printf("[telegram] gagal mengirim log expiry order: %v", notifyErr)
+				}
+			}
 		}
 	}
 	run()

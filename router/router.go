@@ -95,6 +95,8 @@ func InitRouter(
 	user_api := r.Group("user_api")
 	ranger_api := r.Group("ranger_api")
 	admin_api := r.Group("admin_api")
+	admin_api.GET("/integrations/shopee", authMiddleware.AuthAdmin, shopeeService.SessionStatus)
+	admin_api.PUT("/integrations/shopee", authMiddleware.AuthAdmin, shopeeService.UpdateSession)
 
 	api.POST("/register", userHandler.Register)
 	api.POST("/login", userHandler.Login)

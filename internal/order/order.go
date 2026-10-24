@@ -182,6 +182,12 @@ type AutoPoster interface {
 	RemoveEventRegistration(ctx *gin.Context, orderID string) error
 }
 
+// Notifier mengirim log operasional best-effort (misalnya Telegram).
+// Kegagalannya tidak pernah boleh membatalkan order pelanggan.
+type Notifier interface {
+	Notify(ctx context.Context, text string) error
+}
+
 type Service interface {
 	Create(ctx *gin.Context, req *CreateOrder) (*Order, error)
 	PreviewVoucher(ctx *gin.Context, req *VoucherPreviewRequest) (*VoucherPreview, error)
@@ -197,6 +203,7 @@ type Service interface {
 	// SetAutoPoster memasang peniti aktivitas ke feed komunitas. Boleh tidak
 	// dipasang: tanpa itu, order berjalan seperti sebelum Fase 3.
 	SetAutoPoster(poster AutoPoster)
+	SetNotifier(notifier Notifier)
 	Participants(ctx *gin.Context, event_id string) ([]*Order, error)
 	ListVouchers(ctx *gin.Context) ([]*Voucher, error)
 	CreateVoucher(ctx *gin.Context, input *VoucherInput) (*Voucher, error)

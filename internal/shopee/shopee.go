@@ -6,7 +6,12 @@ package shopee
 import (
 	"bytes"
 	"context"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,6 +25,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 const qrLifetime = 30 * time.Minute
@@ -49,13 +55,34 @@ type Service struct {
 	mu               sync.RWMutex
 	apiKey           string
 	shopeeToken      string
+	shopeeCookie     string
+	shopeeXToken     string
 	qrisStatic       string
 	qrs              map[string]qrPayment
 	usedTransactions map[string]time.Time
 	logs             []logEntry
 	httpClient       *http.Client
+	db               *gorm.DB
 	paymentLookup    PaymentLookup
 	autoValidation   bool
+}
+
+type secretSetting struct {
+	Key       string `gorm:"primaryKey"`
+	Value     string
+	UpdatedAt time.Time
+}
+
+func (secretSetting) TableName() string { return "integration_secrets" }
+
+type SessionSettings struct {
+	TokenConfigured  bool       `json:"token_configured"`
+	CookieConfigured bool       `json:"cookie_configured"`
+	UpdatedAt        *time.Time `json:"updated_at,omitempty"`
+}
+type UpdateSessionSettings struct {
+	Token  string `json:"token"`
+	Cookie string `json:"cookie"`
 }
 
 // PaymentLookup membuat endpoint legacy /check-payment membaca klaim
@@ -70,6 +97,169 @@ func (s *Service) SetPaymentLookup(lookup PaymentLookup) {
 	s.paymentLookup = lookup
 }
 
+func (s *Service) SetDatabase(db *gorm.DB) { s.db = db }
+
+func (s *Service) encryptionKey() ([]byte, error) {
+	secret := strings.TrimSpace(os.Getenv("JWT_SECRET_KEY"))
+	if secret == "" {
+		return nil, fmt.Errorf("JWT_SECRET_KEY belum dikonfigurasi")
+	}
+	sum := sha256.Sum256([]byte("ynsolo:shopee-session:" + secret))
+	return sum[:], nil
+}
+func (s *Service) encrypt(value string) (string, error) {
+	key, err := s.encryptionKey()
+	if err != nil {
+		return "", err
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err = rand.Read(nonce); err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(append(nonce, gcm.Seal(nil, nonce, []byte(value), nil)...)), nil
+}
+func (s *Service) decrypt(value string) (string, error) {
+	key, err := s.encryptionKey()
+	if err != nil {
+		return "", err
+	}
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+	raw, err := base64.StdEncoding.DecodeString(value)
+	if err != nil {
+		return "", err
+	}
+	if len(raw) < gcm.NonceSize() {
+		return "", fmt.Errorf("data sesi Shopee tidak valid")
+	}
+	plain, err := gcm.Open(nil, raw[:gcm.NonceSize()], raw[gcm.NonceSize():], nil)
+	return string(plain), err
+}
+func normalizeCookie(raw string) string {
+	raw = strings.TrimSpace(raw)
+	raw = strings.TrimPrefix(raw, "Cookie:")
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "-b ") {
+		raw = strings.TrimSpace(strings.TrimPrefix(raw, "-b "))
+	}
+	raw = strings.Trim(raw, "'\"")
+	parts := strings.Split(raw, ";")
+	valid := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if item := strings.TrimSpace(part); strings.Contains(item, "=") {
+			valid = append(valid, item)
+		}
+	}
+	return strings.Join(valid, "; ")
+}
+
+// Token partner tidak pernah mengandung spasi; paste dari terminal/WhatsApp
+// kadang menyisipkan line break atau spasi visual di tengah token.
+func normalizeToken(raw string) string { return strings.Join(strings.Fields(raw), "") }
+
+func (s *Service) LoadSessionSettings() error {
+	if s.db == nil {
+		return nil
+	}
+	var rows []secretSetting
+	if err := s.db.Where("key IN ?", []string{"shopee_token", "shopee_cookie"}).Find(&rows).Error; err != nil {
+		return err
+	}
+	for _, row := range rows {
+		value, err := s.decrypt(row.Value)
+		if err != nil {
+			return err
+		}
+		s.mu.Lock()
+		if row.Key == "shopee_token" {
+			s.shopeeToken = value
+		} else {
+			s.shopeeCookie = value
+		}
+		s.mu.Unlock()
+	}
+	return nil
+}
+func (s *Service) SessionStatus(c *gin.Context) {
+	s.mu.RLock()
+	status := SessionSettings{TokenConfigured: strings.TrimSpace(s.shopeeToken) != "", CookieConfigured: strings.TrimSpace(s.shopeeCookie) != ""}
+	s.mu.RUnlock()
+	if s.db != nil {
+		var row secretSetting
+		if err := s.db.Where("key = ?", "shopee_token").First(&row).Error; err == nil {
+			status.UpdatedAt = &row.UpdatedAt
+		}
+	}
+	c.JSON(http.StatusOK, status)
+}
+func (s *Service) UpdateSession(c *gin.Context) {
+	var input UpdateSessionSettings
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+	token, cookie := normalizeToken(input.Token), normalizeCookie(input.Cookie)
+	if token == "" || cookie == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "SHOPEE_TOKEN dan cookie wajib diisi"})
+		return
+	}
+	if s.db == nil || s.db.Config == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Penyimpanan konfigurasi belum tersedia"})
+		return
+	}
+	encryptedToken, err := s.encrypt(token)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	encryptedCookie, err := s.encrypt(cookie)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	now := time.Now()
+	if err := s.persistSession(encryptedToken, encryptedCookie, now); err != nil {
+		log.Printf("[shopee] gagal menyimpan sesi dashboard: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menyimpan sesi Shopee"})
+		return
+	}
+	s.mu.Lock()
+	s.shopeeToken, s.shopeeCookie = token, cookie
+	s.mu.Unlock()
+	s.addLog("INFO", "Sesi Shopee diperbarui melalui Dashboard Admin")
+	c.JSON(http.StatusOK, gin.H{"message": "Sesi Shopee berhasil diperbarui"})
+}
+
+// persistSession mengubah panic driver/database yang tak terduga menjadi error
+// terkontrol agar endpoint admin tidak pernah menjatuhkan request Gin.
+func (s *Service) persistSession(token, cookie string, now time.Time) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("penyimpanan sesi Shopee panic: %v", recovered)
+		}
+	}()
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&secretSetting{Key: "shopee_token", Value: token, UpdatedAt: now}).Error; err != nil {
+			return err
+		}
+		return tx.Save(&secretSetting{Key: "shopee_cookie", Value: cookie, UpdatedAt: now}).Error
+	})
+}
+
 // SetAutoValidation diperbarui worker agar health melaporkan proses yang
 // benar-benar berjalan, bukan sekadar keberadaan environment.
 func (s *Service) SetAutoValidation(active bool) {
@@ -81,7 +271,9 @@ func (s *Service) SetAutoValidation(active bool) {
 func NewFromEnv() *Service {
 	return &Service{
 		apiKey:           os.Getenv("API_KEY"),
-		shopeeToken:      os.Getenv("SHOPEE_TOKEN"),
+		shopeeToken:      normalizeToken(os.Getenv("SHOPEE_TOKEN")),
+		shopeeCookie:     os.Getenv("SHOPEE_COOKIE"),
+		shopeeXToken:     os.Getenv("SHOPEE_X_TOKEN"),
 		qrisStatic:       os.Getenv("QRIS_STATIC"),
 		qrs:              make(map[string]qrPayment),
 		usedTransactions: make(map[string]time.Time),
@@ -377,7 +569,7 @@ func (s *Service) SuccessfulTransactions(ctx context.Context, start, end time.Ti
 		return nil, fmt.Errorf("Shopee transaction provider is not configured")
 	}
 	s.mu.RLock()
-	token := strings.TrimSpace(s.shopeeToken)
+	token := normalizeToken(s.shopeeToken)
 	s.mu.RUnlock()
 	if token == "" {
 		return nil, fmt.Errorf("Shopee token is not configured")
@@ -503,10 +695,29 @@ func (s *Service) postShopee(ctx context.Context, endpoint string, payload any, 
 		return err
 	}
 	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json, text/plain, */*")
+	request.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	request.Header.Set("Origin", "https://partner.shopee.co.id")
 	request.Header.Set("Referer", "https://partner.shopee.co.id/")
-	request.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+	// Header berikut menyamai request browser partner yang menjadi referensi
+	// operasional. Cookie sengaja dari environment: ia adalah sesi sensitif dan
+	// tidak pernah boleh dimasukkan ke source, log, maupun respons API.
+	request.Header.Set("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1")
+	request.Header.Set("Sec-CH-UA-Mobile", "?1")
+	request.Header.Set("Sec-CH-UA-Platform", `"iOS"`)
+	request.Header.Set("Sec-Fetch-Dest", "empty")
+	request.Header.Set("Sec-Fetch-Mode", "cors")
+	request.Header.Set("Sec-Fetch-Site", "same-site")
 	request.Header.Set("X-Timestamp-Ms", strconv.FormatInt(time.Now().UnixMilli(), 10))
+	s.mu.RLock()
+	cookie, xToken := strings.TrimSpace(s.shopeeCookie), strings.TrimSpace(s.shopeeXToken)
+	s.mu.RUnlock()
+	if cookie != "" {
+		request.Header.Set("Cookie", cookie)
+	}
+	// curl referensi menyertakan x-token (boleh kosong). Nilai non-kosong
+	// disediakan jika sesi Shopee yang dipakai membutuhkannya.
+	request.Header.Set("X-Token", xToken)
 	response, err := s.client().Do(request)
 	if err != nil {
 		return fmt.Errorf("Shopee request failed: %w", err)
@@ -517,7 +728,14 @@ func (s *Service) postShopee(ctx context.Context, endpoint string, payload any, 
 		return err
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("Shopee HTTP %d", response.StatusCode)
+		message := strings.TrimSpace(string(data))
+		if len(message) > 500 {
+			message = message[:500]
+		}
+		if message == "" {
+			message = response.Status
+		}
+		return fmt.Errorf("Shopee HTTP %d: %s", response.StatusCode, message)
 	}
 	return json.Unmarshal(data, output)
 }
