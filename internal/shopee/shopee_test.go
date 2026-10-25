@@ -3,6 +3,7 @@ package shopee
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -76,6 +77,25 @@ func TestDynamicQRISAddsAmountAndValidChecksum(t *testing.T) {
 	if got, want := crc16CCITT([]byte(withoutChecksum)), uint16(checksum); got != want {
 		t.Fatalf("checksum = %04X, want %04X", checksum, got)
 	}
+}
+
+func TestDynamicQRISPadsLeadingZeroInChecksum(t *testing.T) {
+	staticQR := "0002010102115204000053033605802ID5904Test6003abc6304ABCD"
+	for amount := int64(1); amount <= 100_000; amount++ {
+		qr, err := dynamicQRIS(staticQR, amount)
+		if err != nil {
+			t.Fatal(err)
+		}
+		checksum := crc16CCITT([]byte(qr[:len(qr)-4]))
+		if checksum >= 0x1000 {
+			continue
+		}
+		if got, want := qr[len(qr)-4:], fmt.Sprintf("%04X", checksum); got != want {
+			t.Fatalf("checksum = %q, want %q", got, want)
+		}
+		return
+	}
+	t.Fatal("could not find a checksum with a leading zero")
 }
 
 func TestCheckPaymentUsesShopeeTransactionProvider(t *testing.T) {

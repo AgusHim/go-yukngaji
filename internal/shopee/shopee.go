@@ -791,7 +791,9 @@ func dynamicQRIS(staticQR string, amount int64) (string, error) {
 	}
 	result := builder.String() + "54" + twoDigits(len(amountText)) + amountText + "6304"
 	checksum := crc16CCITT([]byte(result))
-	return result + strings.ToUpper(strconv.FormatUint(uint64(checksum), 16)), nil
+	// Nilai checksum tag 63 harus selalu empat digit hex. FormatUint menghapus
+	// nol di depan (mis. 0CFC menjadi CFC), sehingga payload menjadi invalid.
+	return result + fmt.Sprintf("%04X", checksum), nil
 }
 
 func twoDigits(value int) string {
