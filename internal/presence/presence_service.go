@@ -83,14 +83,15 @@ func (s *service) Create(c *gin.Context, req *CreatePresence) (*Presence, error)
 		return nil, ErrEventNotFound
 	}
 
+	now := time.Now()
+	checkInDate := CheckInDate(now, JakartaLocation)
 	if req.UserID != nil {
-		presence, _ := s.PresenceRepository.FindByUserID(c, *req.UserID, event.ID)
+		presence, _ := s.PresenceRepository.FindByUserIDAndDate(c, *req.UserID, event.ID, checkInDate)
 		if presence != nil {
 			return presence, nil
 		}
 	}
 
-	now := time.Now()
 	if event.CloseAt != nil {
 		if now.After(*event.CloseAt) {
 			return nil, ErrRegisterClosed
@@ -124,11 +125,20 @@ func (s *service) Create(c *gin.Context, req *CreatePresence) (*Presence, error)
 	}
 
 	presence.User = participant
-	presence.CreatedAt = time.Now()
-	presence.UpdatedAt = time.Now()
+	presence.CheckInDate = &checkInDate
+	presence.CreatedAt = now
+	presence.UpdatedAt = now
 
 	presence, err := s.PresenceRepository.Create(c, presence)
 	if err != nil {
+		// Unique index menjaga satu kehadiran QnA per user/event/hari saat
+		// request dari beberapa tab tiba bersamaan. Perlakukan pemenangnya
+		// sebagai hasil idempoten.
+		if req.UserID != nil {
+			if existing, findErr := s.PresenceRepository.FindByUserIDAndDate(c, *req.UserID, event.ID, checkInDate); findErr == nil && existing != nil {
+				return existing, nil
+			}
+		}
 		// Hapus akun yang baru dibuat supaya tidak meninggalkan akun yatim.
 		if participant != nil && req.User != nil {
 			if err := s.UserService.DeleteByID(c, participant.ID); err != nil {

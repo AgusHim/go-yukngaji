@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS uniq_presence_qna_user_event_check_in_date;

@@ -46,6 +46,21 @@ func (r *repository) FindByUserID(c *gin.Context, id string, eventID string) (*P
 	return presence, nil
 }
 
+func (r *repository) FindByUserIDAndDate(c *gin.Context, userID string, eventID string, checkInDate time.Time) (*Presence, error) {
+	presence := &Presence{}
+	err := r.db.Preload("User").Preload("Event").
+		Where("user_id = ?", userID).
+		Where("event_id = ?", eventID).
+		Where("user_ticket_id IS NULL").
+		Where("check_in_date = ?", checkInDate).
+		Where("deleted_at IS NULL").
+		First(&presence).Error
+	if err != nil {
+		return nil, err
+	}
+	return presence, nil
+}
+
 func (r *repository) FindByUserTicketID(c *gin.Context, id string, eventID string) (*Presence, error) {
 	presence := &Presence{}
 	err := r.db.Preload("User").Preload("Event").Where("user_ticket_id = ?", id).Where("event_id = ?", eventID).Where("deleted_at IS NULL").First(&presence).Error

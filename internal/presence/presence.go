@@ -75,6 +75,8 @@ type Repository interface {
 	Index(ctx *gin.Context) ([]*Presence, error)
 	IndexByUserTicket(ctx *gin.Context, user_ticket_id string) ([]*Presence, error)
 	FindByUserID(ctx *gin.Context, id string, eventID string) (*Presence, error)
+	// FindByUserIDAndDate mencari kehadiran dari link QnA pada satu hari WIB.
+	FindByUserIDAndDate(ctx *gin.Context, userID string, eventID string, checkInDate time.Time) (*Presence, error)
 	FindByUserTicketID(ctx *gin.Context, id string, eventID string) (*Presence, error)
 	// FindByUserTicketAndDate mencari check-in tiket pada tanggal tertentu.
 	FindByUserTicketAndDate(ctx *gin.Context, userTicketID string, checkInDate time.Time) (*Presence, error)
