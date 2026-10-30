@@ -179,3 +179,26 @@ func (h *handler) Learning(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, res)
 }
+
+func (h *handler) SubmitAssignment(c *gin.Context) {
+	var req SubmitAssignment
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+		return
+	}
+	res, err := h.Service.SubmitAssignment(c, c.Param("episode_id"), &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}
+
+func (h *handler) ListAssignmentSubmissions(c *gin.Context) {
+	res, err := h.Service.ListAssignmentSubmissions(c, c.Param("event_id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, res)
+}

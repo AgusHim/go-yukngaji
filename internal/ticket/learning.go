@@ -2,6 +2,7 @@ package ticket
 
 import (
 	"errors"
+	"net/url"
 	"strings"
 	"time"
 
@@ -10,24 +11,26 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // Episode adalah satu pertemuan dalam rangkaian event. Content sengaja
 // dipisahkan agar materi dan rekaman dapat terbit pada waktu berbeda.
 type Episode struct {
-	ID          string     `json:"id"`
-	EventID     string     `json:"event_id"`
-	Position    int        `json:"position"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	StartAt     *time.Time `json:"start_at"`
-	EndAt       *time.Time `json:"end_at"`
-	IsPublished bool       `json:"is_published"`
-	Contents    []Content  `json:"contents,omitempty" gorm:"-"`
-	Unlocked    bool       `json:"unlocked" gorm:"-"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"-"`
-	DeletedAt   *time.Time `json:"-"`
+	ID          string                `json:"id"`
+	EventID     string                `json:"event_id"`
+	Position    int                   `json:"position"`
+	Title       string                `json:"title"`
+	Description string                `json:"description"`
+	StartAt     *time.Time            `json:"start_at"`
+	EndAt       *time.Time            `json:"end_at"`
+	IsPublished bool                  `json:"is_published"`
+	Contents    []Content             `json:"contents,omitempty" gorm:"-"`
+	Unlocked    bool                  `json:"unlocked" gorm:"-"`
+	Submission  *AssignmentSubmission `json:"submission,omitempty" gorm:"-"`
+	CreatedAt   time.Time             `json:"created_at"`
+	UpdatedAt   time.Time             `json:"-"`
+	DeletedAt   *time.Time            `json:"-"`
 }
 
 func (Episode) TableName() string { return "event_episodes" }
@@ -47,6 +50,29 @@ type Content struct {
 }
 
 func (Content) TableName() string { return "event_episode_contents" }
+
+// AssignmentSubmission menyimpan tautan tugas di Google Drive. Berkas tidak
+// pernah diunggah ke server, sehingga Drive tetap menjadi storage publiknya.
+type AssignmentSubmission struct {
+	ID        string     `json:"id"`
+	EpisodeID string     `json:"episode_id"`
+	UserID    string     `json:"user_id"`
+	FileType  string     `json:"file_type"`
+	DriveURL  string     `json:"drive_url"`
+	Note      string     `json:"note"`
+	User      *user.User `json:"user,omitempty"`
+	Episode   *Episode   `json:"episode,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+func (AssignmentSubmission) TableName() string { return "event_assignment_submissions" }
+
+type SubmitAssignment struct {
+	FileType string `json:"file_type" binding:"required"`
+	DriveURL string `json:"drive_url" binding:"required"`
+	Note     string `json:"note"`
+}
 
 type CreateEpisode struct {
 	EventID     string  `json:"event_id" binding:"required"`
@@ -217,8 +243,76 @@ func (s *service) Learning(c *gin.Context, slug string) ([]*Episode, error) {
 		if err := s.repositoryDB().Where("episode_id = ? AND is_published = ? AND deleted_at IS NULL", episode.ID, true).Order("position ASC").Find(&episode.Contents).Error; err != nil {
 			return nil, err
 		}
+		submission := &AssignmentSubmission{}
+		if err := s.repositoryDB().Where("episode_id = ? AND user_id = ?", episode.ID, currentUser.ID).First(submission).Error; err == nil {
+			episode.Submission = submission
+		} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, err
+		}
 	}
 	return episodes, nil
+}
+
+func validGoogleDriveURL(raw string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme != "https" {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return host == "drive.google.com" || host == "docs.google.com" || strings.HasSuffix(host, ".drive.google.com") || strings.HasSuffix(host, ".googleusercontent.com")
+}
+
+func (s *service) SubmitAssignment(c *gin.Context, episodeID string, req *SubmitAssignment) (*AssignmentSubmission, error) {
+	currentUser, ok := user.FromContext(c)
+	if !ok {
+		return nil, errors.New("unauthorized")
+	}
+	if req == nil || !validGoogleDriveURL(req.DriveURL) {
+		return nil, errors.New("tautan harus berupa link publik Google Drive")
+	}
+	if req.FileType != "document" && req.FileType != "video" && req.FileType != "image" {
+		return nil, errors.New("tipe file harus document, video, atau image")
+	}
+	var episode Episode
+	if err := s.repositoryDB().Where("id = ? AND deleted_at IS NULL AND is_published = ?", episodeID, true).First(&episode).Error; err != nil {
+		return nil, err
+	}
+	var accessCount int64
+	if err := s.repositoryDB().Table("user_tickets ut").
+		Joins("JOIN orders o ON o.id = ut.order_id").
+		Joins("JOIN tickets t ON t.id = ut.ticket_id").
+		Joins("LEFT JOIN ticket_episode_access tea ON tea.ticket_id = t.id AND tea.episode_id = ?", episodeID).
+		Where("ut.event_id = ? AND o.status = ? AND ut.deleted_at IS NULL", episode.EventID, "paid").
+		Where("(ut.user_id = ? OR ut.participant_user_id = ?)", currentUser.ID, currentUser.ID).
+		Where("(t.access_mode = ? OR tea.episode_id IS NOT NULL)", "all").Count(&accessCount).Error; err != nil {
+		return nil, err
+	}
+	if accessCount == 0 {
+		return nil, errors.New("kamu belum memiliki akses ke episode ini")
+	}
+	now := time.Now()
+	submission := &AssignmentSubmission{ID: uuid.NewString(), EpisodeID: episodeID, UserID: currentUser.ID, FileType: req.FileType, DriveURL: strings.TrimSpace(req.DriveURL), Note: strings.TrimSpace(req.Note), CreatedAt: now, UpdatedAt: now}
+	if err := s.repositoryDB().Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "episode_id"}, {Name: "user_id"}},
+		DoUpdates: clause.Assignments(map[string]interface{}{"file_type": submission.FileType, "drive_url": submission.DriveURL, "note": submission.Note, "updated_at": now}),
+	}).Create(submission).Error; err != nil {
+		return nil, err
+	}
+	// Pada konflik, PostgreSQL mempertahankan ID dan created_at kiriman awal.
+	// Baca ulang supaya respons selalu memuat record yang benar.
+	if err := s.repositoryDB().Where("episode_id = ? AND user_id = ?", episodeID, currentUser.ID).First(submission).Error; err != nil {
+		return nil, err
+	}
+	return submission, nil
+}
+
+func (s *service) ListAssignmentSubmissions(c *gin.Context, eventID string) ([]*AssignmentSubmission, error) {
+	var submissions []*AssignmentSubmission
+	err := s.repositoryDB().Preload("User").Preload("Episode").
+		Joins("JOIN event_episodes ep ON ep.id = event_assignment_submissions.episode_id").
+		Where("ep.event_id = ? AND ep.deleted_at IS NULL", eventID).
+		Order("event_assignment_submissions.updated_at DESC").Find(&submissions).Error
+	return submissions, err
 }
 
 // repositoryDB menjaga detail GORM tetap berada di package ticket sambil

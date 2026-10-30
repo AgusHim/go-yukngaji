@@ -176,6 +176,8 @@ func InitRouter(
 	admin_api.PUT("/event_episode_contents/:id", authMiddleware.AuthAdmin, ticketHandler.UpdateContent)
 	admin_api.DELETE("/event_episode_contents/:id", authMiddleware.AuthAdmin, ticketHandler.DeleteContent)
 	user_api.GET("/events/:slug/learning", authMiddleware.AuthUser, ticketHandler.Learning)
+	user_api.POST("/event_episodes/:episode_id/assignments", authMiddleware.AuthUser, ticketHandler.SubmitAssignment)
+	admin_api.GET("/events/:event_id/assignments", authMiddleware.AuthAdmin, ticketHandler.ListAssignmentSubmissions)
 
 	/* Orders */
 	user_api.GET("/orders", authMiddleware.AuthUser, orderHandler.Index)

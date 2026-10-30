@@ -69,6 +69,8 @@ type Service interface {
 	DeleteContent(ctx *gin.Context, id string) error
 	ListEpisodes(ctx *gin.Context, eventID string, includeUnpublished bool) ([]*Episode, error)
 	Learning(ctx *gin.Context, slug string) ([]*Episode, error)
+	SubmitAssignment(ctx *gin.Context, episodeID string, req *SubmitAssignment) (*AssignmentSubmission, error)
+	ListAssignmentSubmissions(ctx *gin.Context, eventID string) ([]*AssignmentSubmission, error)
 }
 
 type Handler interface {
@@ -85,4 +87,6 @@ type Handler interface {
 	DeleteContent(ctx *gin.Context)
 	ListEpisodes(ctx *gin.Context)
 	Learning(ctx *gin.Context)
+	SubmitAssignment(ctx *gin.Context)
+	ListAssignmentSubmissions(ctx *gin.Context)
 }
