@@ -37,6 +37,10 @@ const (
 	defaultLifetime = 30 * time.Minute
 	amountHold      = 24 * time.Hour
 	settlementLease = 90 * time.Second
+	// reconciliationGrace menahan charge tetap dapat dicocokkan sesaat setelah
+	// invoice berakhir. Ini menangani mutasi Shopee yang terlambat muncul pada
+	// daftar transaksi, tanpa menerima nominal selain total + kode unik charge.
+	reconciliationGrace = 5 * time.Minute
 )
 
 // Charge adalah satu nominal QRIS unik untuk tepat satu transaksi domain.
@@ -88,7 +92,9 @@ func (s *Service) SetSettler(settler Settler)          { s.settler = settler }
 func (s *Service) SetEligibility(eligible Eligibility) { s.eligible = eligible }
 func (s *Service) SetNotifier(notifier interface {
 	Notify(context.Context, string) error
-}) { s.notifier = notifier }
+}) {
+	s.notifier = notifier
+}
 
 // Validate memastikan migrasi yang dibutuhkan sudah diterapkan. Integrasi
 // pembayaran tidak boleh tampak aktif ketika worker sebenarnya hanya akan
@@ -145,7 +151,7 @@ func (s *Service) CreateCharge(c *gin.Context, entityType, entityID string, base
 			return err
 		}
 		if err := tx.Model(&Charge{}).
-			Where("status = ? AND expires_at <= ?", StatusPending, now).
+			Where("status = ? AND expires_at <= ?", StatusPending, now.Add(-reconciliationGrace)).
 			Updates(map[string]any{"status": StatusExpired, "updated_at": now}).Error; err != nil {
 			return err
 		}
@@ -157,7 +163,7 @@ func (s *Service) CreateCharge(c *gin.Context, entityType, entityID string, base
 			result = existing
 			return nil
 		}
-		if err == nil && existing.Status == StatusPending && existing.BaseAmount == baseAmount && existing.ExpiresAt.After(now) {
+		if err == nil && existing.Status == StatusPending && existing.BaseAmount == baseAmount && existing.ExpiresAt.Add(reconciliationGrace).After(now) {
 			result = existing
 			return nil
 		}
@@ -330,9 +336,9 @@ func (s *Service) notifySettlement(ctx context.Context, charge *Charge) {
 func (s *Service) Reconcile(ctx context.Context) error {
 	now := time.Now().UTC()
 	var pending []Charge
-	// Grace lima menit membuat pembayaran yang masuk tepat sebelum kedaluwarsa
-	// tetap ditemukan bila satu tick worker terlambat atau upstream sempat gagal.
-	if err := s.db.WithContext(ctx).Where("status = ? AND expires_at > ?", StatusPending, now.Add(-5*time.Minute)).
+	// Grace membuat pembayaran yang masuk tepat sebelum kedaluwarsa tetap
+	// ditemukan bila satu tick worker terlambat atau upstream sempat gagal.
+	if err := s.db.WithContext(ctx).Where("status = ? AND expires_at > ?", StatusPending, now.Add(-reconciliationGrace)).
 		Order("created_at ASC").Find(&pending).Error; err != nil {
 		return err
 	}
@@ -371,7 +377,7 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		}
 	}
 	if err := s.db.WithContext(ctx).Model(&Charge{}).
-		Where("status = ? AND expires_at <= ?", StatusPending, now).
+		Where("status = ? AND expires_at <= ?", StatusPending, now.Add(-reconciliationGrace)).
 		Updates(map[string]any{"status": StatusExpired, "updated_at": now}).Error; err != nil {
 		return err
 	}
@@ -383,7 +389,7 @@ func matchesMutation(charge *Charge, mutation shopee.SuccessfulTransaction) bool
 		return false
 	}
 	return !mutation.CreateTime.Before(charge.CreatedAt.Add(-2*time.Minute)) &&
-		!mutation.CreateTime.After(charge.ExpiresAt.Add(2*time.Minute))
+		!mutation.CreateTime.After(charge.ExpiresAt.Add(reconciliationGrace))
 }
 
 func (s *Service) claim(ctx context.Context, chargeID, transactionID string, paidAt time.Time) (bool, error) {

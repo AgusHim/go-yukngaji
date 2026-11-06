@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"mainyuk/internal/httperr"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -174,7 +176,7 @@ func (h *handler) ListEpisodes(c *gin.Context) {
 func (h *handler) Learning(c *gin.Context) {
 	res, err := h.Service.Learning(c, c.Param("slug"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httperr.JSON(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, res)

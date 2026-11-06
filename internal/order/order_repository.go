@@ -26,6 +26,11 @@ type repository struct {
 	db *gorm.DB
 }
 
+// shopeeQRISReconciliationGrace harus sama dengan masa rekonsiliasi pada
+// shopee_qris.Service. Order tidak boleh lebih dulu menjadi expired ketika
+// mutasi QRIS ber-nominal unik masih sedang diverifikasi oleh worker.
+const shopeeQRISReconciliationGrace = 5 * time.Minute
+
 func (r *repository) previewVoucher(c *gin.Context, eventID, userID, code string, subtotal int, now time.Time) (*Voucher, int, string, error) {
 	code = strings.ToUpper(strings.TrimSpace(code))
 	if code == "" {
@@ -323,7 +328,21 @@ func (r *repository) ExpirePending(c *gin.Context, now time.Time) (int64, error)
 		// Ubah status lebih dahulu dan ambil hanya order yang benar-benar
 		// berpindah. Dengan begitu voucher order yang baru saja dibayar tidak
 		// mungkin ikut dilepas oleh worker kedaluwarsa.
-		rows, err := tx.Raw(`UPDATE orders SET status = ?, updated_at = ? WHERE status = ? AND expired_at IS NOT NULL AND expired_at <= ? RETURNING id`, StatusExpired, now, StatusPending, now).Rows()
+		rows, err := tx.Raw(`
+			UPDATE orders
+			SET status = ?, updated_at = ?
+			WHERE status = ?
+			  AND expired_at IS NOT NULL
+			  AND expired_at <= ?
+			  AND NOT EXISTS (
+				SELECT 1
+				FROM shopee_qris_charges charge
+				WHERE charge.entity_type = 'event_order'
+				  AND charge.entity_id = orders.id
+				  AND charge.status = 'pending'
+				  AND charge.expires_at > ?
+			  )
+			RETURNING id`, StatusExpired, now, StatusPending, now, now.Add(-shopeeQRISReconciliationGrace)).Rows()
 		if err != nil {
 			return err
 		}

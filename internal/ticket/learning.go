@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"mainyuk/internal/apperr"
 	"mainyuk/internal/user"
 
 	"github.com/gin-gonic/gin"
@@ -201,7 +202,10 @@ func (s *service) Learning(c *gin.Context, slug string) ([]*Episode, error) {
 		return nil, errors.New("unauthorized")
 	}
 	var eventRow struct{ ID string }
-	if err := s.repositoryDB().Table("events").Select("id").Where("slug = ? AND deleted_at IS NULL", slug).First(&eventRow).Error; err != nil {
+	if err := s.repositoryDB().Table("events").Select("events.id").Joins("JOIN divisi ON divisi.id = events.divisi_id").Where("events.slug = ? AND events.deleted_at IS NULL", slug).Where("LOWER(TRIM(divisi.name)) = ?", "class").First(&eventRow).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, apperr.ErrForbidden
+		}
 		return nil, err
 	}
 	episodes, err := s.ListEpisodes(c, eventRow.ID, false)

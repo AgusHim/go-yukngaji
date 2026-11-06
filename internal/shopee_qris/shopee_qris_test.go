@@ -19,7 +19,8 @@ func TestMatchesMutationRequiresExactUniqueAmountAndWindow(t *testing.T) {
 		{"exact", shopee.SuccessfulTransaction{ID: "tx-1", Amount: 100123, CreateTime: created.Add(time.Minute)}, true},
 		{"amount berbeda", shopee.SuccessfulTransaction{ID: "tx-2", Amount: 100124, CreateTime: created.Add(time.Minute)}, false},
 		{"terlalu awal", shopee.SuccessfulTransaction{ID: "tx-3", Amount: 100123, CreateTime: created.Add(-2*time.Minute - time.Second)}, false},
-		{"terlalu akhir", shopee.SuccessfulTransaction{ID: "tx-4", Amount: 100123, CreateTime: charge.ExpiresAt.Add(2*time.Minute + time.Second)}, false},
+		{"dalam masa rekonsiliasi", shopee.SuccessfulTransaction{ID: "tx-4", Amount: 100123, CreateTime: charge.ExpiresAt.Add(reconciliationGrace - time.Second)}, true},
+		{"terlalu akhir", shopee.SuccessfulTransaction{ID: "tx-5", Amount: 100123, CreateTime: charge.ExpiresAt.Add(reconciliationGrace + time.Second)}, false},
 		{"id kosong", shopee.SuccessfulTransaction{Amount: 100123, CreateTime: created.Add(time.Minute)}, false},
 	}
 
