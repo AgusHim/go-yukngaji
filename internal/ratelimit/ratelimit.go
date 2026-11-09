@@ -86,6 +86,8 @@ func (l *Limiter) Reset(key string) {
 var (
 	// Login membatasi percobaan login per alamat IP.
 	Login = New(10, time.Minute)
+	// VerifierLogin melindungi password bersama verifikator event dari brute force.
+	VerifierLogin = New(10, time.Minute)
 	// OTPRequest membatasi permintaan OTP per email.
 	OTPRequest = New(5, time.Hour)
 	// OTPVerify membatasi percobaan verifikasi OTP per email.

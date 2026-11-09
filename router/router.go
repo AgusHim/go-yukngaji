@@ -8,6 +8,7 @@ import (
 	"mainyuk/internal/community"
 	"mainyuk/internal/divisi"
 	"mainyuk/internal/event"
+	"mainyuk/internal/event_verifier"
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/fundraising"
 	"mainyuk/internal/gamification"
@@ -45,6 +46,7 @@ func InitRouter(
 	eventHandler event.Handler,
 	divisiHandler divisi.Handler,
 	presenceHandler presence.Handler,
+	eventVerifierHandler event_verifier.Handler,
 	commentHandler comment.Handler,
 	likeHandler like.Handler,
 	feedbackHandler feedback.Handler,
@@ -95,6 +97,7 @@ func InitRouter(
 	user_api := r.Group("user_api")
 	ranger_api := r.Group("ranger_api")
 	admin_api := r.Group("admin_api")
+	verifier_api := r.Group("verifier_api")
 	admin_api.GET("/integrations/shopee", authMiddleware.AuthAdmin, shopeeService.SessionStatus)
 	admin_api.PUT("/integrations/shopee", authMiddleware.AuthAdmin, shopeeService.UpdateSession)
 
@@ -119,6 +122,15 @@ func InitRouter(
 	api.GET("/events", eventHandler.Index)
 	api.PUT("/events/:id", authMiddleware.AuthAdmin, eventHandler.Create)
 	admin_api.GET("/events/:event_id/participants", authMiddleware.AuthAdmin, userTicketHandler.IndexByEventID)
+	if eventVerifierHandler != nil {
+		admin_api.GET("/events/:event_id/verifier", authMiddleware.AuthAdmin, eventVerifierHandler.AdminStatus)
+		admin_api.PUT("/events/:event_id/verifier", authMiddleware.AuthAdmin, eventVerifierHandler.SetPassword)
+		admin_api.DELETE("/events/:event_id/verifier", authMiddleware.AuthAdmin, eventVerifierHandler.Disable)
+		verifier_api.POST("/events/:slug/login", eventVerifierHandler.Login)
+		verifier_api.GET("/events/:slug/session", eventVerifierHandler.Session)
+		verifier_api.GET("/events/:slug/tickets", eventVerifierHandler.Tickets)
+		verifier_api.POST("/events/:slug/check-in", eventVerifierHandler.CheckIn)
+	}
 
 	admin_api.POST("/divisi", authMiddleware.AuthPJ, divisiHandler.Create)
 	admin_api.GET("/divisi/:slug", authMiddleware.AuthPJ, divisiHandler.Show)

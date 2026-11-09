@@ -184,6 +184,21 @@ func (s *service) Index(c *gin.Context) ([]*Presence, error) {
 // hari yang sama mengembalikan hasil yang sudah ada sebagai sukses, dan
 // penghitung peserta hanya naik pada check-in pertama tiket.
 func (s *service) CreateFromTicket(c *gin.Context, slug string, public_id string) (*ResScanTicket, error) {
+	adminID, errAdminID := s.GetUserIDAuth(c)
+	if errAdminID != nil {
+		return nil, errAdminID
+	}
+	return s.createFromTicket(c, slug, public_id, &adminID, nil)
+}
+
+// CreateFromTicketByVerifier mencatat check-in dari sesi verifikator yang
+// hanya berlaku untuk satu event. Otorisasi event dilakukan oleh service
+// event_verifier sebelum metode ini dipanggil.
+func (s *service) CreateFromTicketByVerifier(c *gin.Context, slug string, publicID string, verifierSessionID string) (*ResScanTicket, error) {
+	return s.createFromTicket(c, slug, publicID, nil, &verifierSessionID)
+}
+
+func (s *service) createFromTicket(c *gin.Context, slug string, public_id string, adminID, verifierSessionID *string) (*ResScanTicket, error) {
 	event, errEvent := s.EventService.Show(c, slug)
 	if errEvent != nil {
 		return nil, ErrEventNotFound
@@ -221,11 +236,6 @@ func (s *service) CreateFromTicket(c *gin.Context, slug string, public_id string
 		return s.scanResult(c, ticket, true, dateLabel)
 	}
 
-	adminID, errAdminID := s.GetUserIDAuth(c)
-	if errAdminID != nil {
-		return nil, errAdminID
-	}
-
 	// Check-in pertama tiket ini? Hanya itu yang menaikkan penghitung peserta.
 	priorCount, errCount := s.PresenceRepository.CountByUserTicket(c, ticket.ID)
 	if errCount != nil {
@@ -249,7 +259,8 @@ func (s *service) CreateFromTicket(c *gin.Context, slug string, public_id string
 	presence.Event = event
 	presence.UserID = participant.ID
 	presence.User = participant
-	presence.AdminID = &adminID
+	presence.AdminID = adminID
+	presence.VerifierSessionID = verifierSessionID
 	presence.CheckInDate = &checkInDate
 	presence.CreatedAt = now
 	presence.UpdatedAt = now

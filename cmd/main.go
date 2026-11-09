@@ -11,6 +11,7 @@ import (
 	"mainyuk/internal/community"
 	"mainyuk/internal/divisi"
 	"mainyuk/internal/event"
+	"mainyuk/internal/event_verifier"
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/fundraising"
 	"mainyuk/internal/gamification"
@@ -145,6 +146,8 @@ func main() {
 	presenceRepository := presence.NewRepository(db)
 	presenceService := presence.NewService(presenceRepository, userService, eventService, userTicketService)
 	presenceHandler := presence.NewHandler(presenceService)
+	eventVerifierService := event_verifier.NewService(db, presenceService)
+	eventVerifierHandler := event_verifier.NewHandler(eventVerifierService)
 
 	otpRepository := otp.NewRepository(db)
 	otpService := otp.NewService(otpRepository, userService)
@@ -286,6 +289,7 @@ func main() {
 		eventHandler,
 		divisiHandler,
 		presenceHandler,
+		eventVerifierHandler,
 		commentHandler,
 		likeHandler,
 		feedbackHandler,

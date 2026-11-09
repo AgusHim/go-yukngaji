@@ -10,14 +10,15 @@ import (
 )
 
 type Presence struct {
-	ID           string                 `json:"id"`
-	UserID       string                 `json:"-" binding:"required"`
-	EventID      string                 `json:"-"  binding:"required"`
-	User         *user.User             `json:"user"`
-	Event        *event.Event           `json:"event"`
-	UserTicketID *string                `json:"-"`
-	UserTicket   user_ticket.UserTicket `json:"user_ticket" gorm:"foreignKey:user_ticket_id;references:id"`
-	AdminID      *string                `json:"admin_id"`
+	ID                string                 `json:"id"`
+	UserID            string                 `json:"-" binding:"required"`
+	EventID           string                 `json:"-"  binding:"required"`
+	User              *user.User             `json:"user"`
+	Event             *event.Event           `json:"event"`
+	UserTicketID      *string                `json:"-"`
+	UserTicket        user_ticket.UserTicket `json:"user_ticket" gorm:"foreignKey:user_ticket_id;references:id"`
+	AdminID           *string                `json:"admin_id"`
+	VerifierSessionID *string                `json:"verifier_session_id,omitempty" gorm:"column:verifier_session_id"`
 	// CheckInDate adalah tanggal check-in (Asia/Jakarta) tanpa jam. Dipakai
 	// bersama unique index supaya satu tiket hanya bisa check-in sekali per hari.
 	CheckInDate *time.Time `json:"check_in_date" gorm:"column:check_in_date;type:date"`
@@ -87,6 +88,8 @@ type Repository interface {
 type Service interface {
 	Create(ctx *gin.Context, req *CreatePresence) (*Presence, error)
 	CreateFromTicket(ctx *gin.Context, slug string, public_id string) (*ResScanTicket, error)
+	// CreateFromTicketByVerifier memakai sesi event-scoped, bukan akun user.
+	CreateFromTicketByVerifier(ctx *gin.Context, slug string, publicID string, verifierSessionID string) (*ResScanTicket, error)
 	Show(ctx *gin.Context, id string) (*Presence, error)
 	Index(ctx *gin.Context) ([]*Presence, error)
 	// SetCheckInRewarder memasang pemberi reward check-in. Best-effort:
