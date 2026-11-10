@@ -131,7 +131,10 @@ func (s *service) Login(c *gin.Context, slug, password string) (*LoginResult, er
 	err := s.db.WithContext(requestContext(c)).Table("events").
 		Select("events.id AS event_id, events.slug, events.title, credential.password_hash, credential.enabled").
 		Joins("JOIN event_verifier_credentials credential ON credential.event_id = events.id").
-		Where("events.slug = ? AND events.deleted_at IS NULL", slug).First(&row).Error
+		// Take avoids GORM inferring `event_id` as the primary key of the
+		// projection struct and emitting `ORDER BY events.event_id`. The events
+		// table's key is `id`; event_id only exists on the verifier tables.
+		Where("events.slug = ? AND events.deleted_at IS NULL", slug).Take(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, ErrDisabled
 	}
@@ -173,7 +176,9 @@ func (s *service) Session(c *gin.Context, slug, token string) (*SessionInfo, *Se
 		Joins("JOIN events ON events.id = session.event_id").
 		Joins("JOIN event_verifier_credentials credential ON credential.event_id = session.event_id").
 		Where("session.token_hash = ? AND events.slug = ? AND session.expires_at > ? AND session.revoked_at IS NULL AND credential.enabled = true", tokenHash(token), slug, time.Now().UTC()).
-		First(&row).Error
+		// The projection's SessionID is an alias, not a column on `session`.
+		// Take prevents GORM from trying to order by session.session_id.
+		Take(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil, ErrUnauthorized
 	}
