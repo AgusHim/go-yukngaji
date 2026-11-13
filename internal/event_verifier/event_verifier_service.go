@@ -243,6 +243,50 @@ func (s *service) TicketOptions(c *gin.Context, slug, token string) ([]*TicketOp
 	return options, nil
 }
 
+func (s *service) Distribution(c *gin.Context, slug, token string) (*Distribution, error) {
+	info, _, err := s.Session(c, slug, token)
+	if err != nil {
+		return nil, err
+	}
+
+	checkDate := presence.CheckInDate(time.Now(), presence.JakartaLocation)
+	checkedIn := `EXISTS (
+		SELECT 1 FROM presence p
+		WHERE p.user_ticket_id = ut.id
+			AND p.check_in_date = ?
+			AND p.deleted_at IS NULL
+	)`
+	var byTicket []*TicketDistribution
+	err = s.db.WithContext(requestContext(c)).Table("tickets").
+		Select(`tickets.id, tickets.name,
+			COUNT(ut.id) AS total_tickets,
+			COALESCE(SUM(CASE WHEN `+checkedIn+` THEN 1 ELSE 0 END), 0) AS checked_in,
+			COALESCE(SUM(CASE WHEN LOWER(COALESCE(ut.user_gender, '')) = 'male' THEN 1 ELSE 0 END), 0) AS male,
+			COALESCE(SUM(CASE WHEN LOWER(COALESCE(ut.user_gender, '')) = 'female' THEN 1 ELSE 0 END), 0) AS female,
+			COALESCE(SUM(CASE WHEN LOWER(COALESCE(ut.user_gender, '')) NOT IN ('male', 'female') THEN 1 ELSE 0 END), 0) AS unspecified`, checkDate).
+		Joins("JOIN user_tickets ut ON ut.ticket_id = tickets.id AND ut.deleted_at IS NULL").
+		Joins("JOIN orders ON orders.id = ut.order_id AND orders.status = 'paid'").
+		Where("tickets.event_id = ? AND tickets.deleted_at IS NULL", info.EventID).
+		Group("tickets.id, tickets.name").
+		Order("tickets.name ASC").
+		Scan(&byTicket).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := &Distribution{ByTicket: byTicket}
+	for _, ticket := range byTicket {
+		ticket.NotCheckedIn = ticket.TotalTickets - ticket.CheckedIn
+		result.TotalTickets += ticket.TotalTickets
+		result.CheckedIn += ticket.CheckedIn
+		result.Male += ticket.Male
+		result.Female += ticket.Female
+		result.Unspecified += ticket.Unspecified
+	}
+	result.NotCheckedIn = result.TotalTickets - result.CheckedIn
+	return result, nil
+}
+
 func (s *service) CheckIn(c *gin.Context, slug, token, publicID string) (*presence.ResScanTicket, error) {
 	_, session, err := s.Session(c, slug, token)
 	if err != nil {

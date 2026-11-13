@@ -110,6 +110,15 @@ func (h *handler) TicketOptions(c *gin.Context) {
 	c.JSON(http.StatusOK, value)
 }
 
+func (h *handler) Distribution(c *gin.Context) {
+	value, err := h.service.Distribution(c, c.Param("slug"), TokenFromRequest(c))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, value)
+}
+
 func (h *handler) CheckIn(c *gin.Context) {
 	var body struct {
 		PublicID string `json:"public_id"`

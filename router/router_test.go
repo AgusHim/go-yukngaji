@@ -10,6 +10,7 @@ import (
 	"mainyuk/internal/community"
 	"mainyuk/internal/divisi"
 	"mainyuk/internal/event"
+	"mainyuk/internal/event_verifier"
 	"mainyuk/internal/feedback"
 	"mainyuk/internal/fundraising"
 	"mainyuk/internal/gamification"
@@ -62,7 +63,7 @@ func TestInitRouterTidakPanik(t *testing.T) {
 		event.NewHandler(nil),
 		divisi.NewHandler(nil),
 		presence.NewHandler(nil),
-		nil,
+		event_verifier.NewHandler(nil),
 		comment.NewHandler(nil),
 		like.NewHandler(nil),
 		feedback.NewHandler(nil),
@@ -105,7 +106,7 @@ func TestRouteFase1Terdaftar(t *testing.T) {
 		event.NewHandler(nil),
 		divisi.NewHandler(nil),
 		presence.NewHandler(nil),
-		nil,
+		event_verifier.NewHandler(nil),
 		comment.NewHandler(nil),
 		like.NewHandler(nil),
 		feedback.NewHandler(nil),
@@ -161,6 +162,9 @@ func TestRouteFase1Terdaftar(t *testing.T) {
 		"GET /admin_api/level_rules",
 		"PUT /admin_api/level_rules",
 		"GET /admin_api/xp/audit_logs",
+
+		"GET /verifier_api/events/:slug/ticket-options",
+		"GET /verifier_api/events/:slug/distribution",
 	}
 
 	for _, route := range want {

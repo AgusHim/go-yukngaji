@@ -48,6 +48,29 @@ type TicketOption struct {
 	Name string `json:"name"`
 }
 
+// Distribution merangkum peserta bertiket paid untuk kebutuhan operasional
+// verifikator. Data ini tidak memuat identitas peserta satu per satu.
+type Distribution struct {
+	TotalTickets int64                 `json:"total_tickets"`
+	CheckedIn    int64                 `json:"checked_in"`
+	NotCheckedIn int64                 `json:"not_checked_in"`
+	Male         int64                 `json:"male"`
+	Female       int64                 `json:"female"`
+	Unspecified  int64                 `json:"unspecified"`
+	ByTicket     []*TicketDistribution `json:"by_ticket"`
+}
+
+type TicketDistribution struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	TotalTickets int64  `json:"total_tickets"`
+	CheckedIn    int64  `json:"checked_in"`
+	NotCheckedIn int64  `json:"not_checked_in"`
+	Male         int64  `json:"male"`
+	Female       int64  `json:"female"`
+	Unspecified  int64  `json:"unspecified"`
+}
+
 type LoginResult struct {
 	Token     string    `json:"token"`
 	ExpiresAt time.Time `json:"expires_at"`
@@ -77,6 +100,7 @@ type Service interface {
 	Session(c *gin.Context, slug, token string) (*SessionInfo, *Session, error)
 	Tickets(c *gin.Context, slug, token, search, ticketID string) ([]*TicketRow, error)
 	TicketOptions(c *gin.Context, slug, token string) ([]*TicketOption, error)
+	Distribution(c *gin.Context, slug, token string) (*Distribution, error)
 	CheckIn(c *gin.Context, slug, token, publicID string) (*presence.ResScanTicket, error)
 }
 
@@ -88,5 +112,6 @@ type Handler interface {
 	Session(c *gin.Context)
 	Tickets(c *gin.Context)
 	TicketOptions(c *gin.Context)
+	Distribution(c *gin.Context)
 	CheckIn(c *gin.Context)
 }

@@ -130,6 +130,7 @@ func InitRouter(
 		verifier_api.GET("/events/:slug/session", eventVerifierHandler.Session)
 		verifier_api.GET("/events/:slug/tickets", eventVerifierHandler.Tickets)
 		verifier_api.GET("/events/:slug/ticket-options", eventVerifierHandler.TicketOptions)
+		verifier_api.GET("/events/:slug/distribution", eventVerifierHandler.Distribution)
 		verifier_api.POST("/events/:slug/check-in", eventVerifierHandler.CheckIn)
 	}
 

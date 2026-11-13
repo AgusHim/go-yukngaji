@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      IMAGE_NAME: go-yukngaji
+      IMAGE_NAME: yukngaji
       DOCKER_USER: ${{ secrets.DOCKER_USERNAME }}
 
     steps:
