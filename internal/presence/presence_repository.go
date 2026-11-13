@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type repository struct {
@@ -21,7 +22,11 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *repository) Create(c *gin.Context, presence *Presence) (*Presence, error) {
-	err := r.db.Preload("User").Preload("Event").Create(&presence).Error
+	// Presence hanya mereferensikan User, Event, dan UserTicket yang sudah ada.
+	// Jangan ikut menyimpan association saat check-in: UserTicket membawa view
+	// user ringkas tanpa kolom age, sehingga autosave GORM dapat mencoba
+	// menulis age = NULL pada schema produksi yang mewajibkan kolom tersebut.
+	err := r.db.Omit(clause.Associations).Create(presence).Error
 	if err != nil {
 		return nil, err
 	}
