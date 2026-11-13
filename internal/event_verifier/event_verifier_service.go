@@ -191,7 +191,7 @@ func (s *service) Session(c *gin.Context, slug, token string) (*SessionInfo, *Se
 	return &SessionInfo{EventID: row.EventID, EventSlug: row.Slug, EventName: row.Title, ExpiresAt: row.ExpiresAt}, session, nil
 }
 
-func (s *service) Tickets(c *gin.Context, slug, token, search string) ([]*TicketRow, error) {
+func (s *service) Tickets(c *gin.Context, slug, token, search, ticketID string) ([]*TicketRow, error) {
 	info, _, err := s.Session(c, slug, token)
 	if err != nil {
 		return nil, err
@@ -208,6 +208,9 @@ func (s *service) Tickets(c *gin.Context, slug, token, search string) ([]*Ticket
 		Joins("LEFT JOIN users participant ON participant.id = ut.participant_user_id").
 		Joins("LEFT JOIN users buyer ON buyer.id = ut.user_id").
 		Where("ut.event_id = ? AND ut.deleted_at IS NULL", info.EventID)
+	if ticketID = strings.TrimSpace(ticketID); ticketID != "" {
+		query = query.Where("ut.ticket_id = ?", ticketID)
+	}
 	search = strings.TrimSpace(search)
 	if search != "" {
 		like := "%" + strings.ToLower(search) + "%"
@@ -218,6 +221,26 @@ func (s *service) Tickets(c *gin.Context, slug, token, search string) ([]*Ticket
 		return nil, err
 	}
 	return rows, nil
+}
+
+func (s *service) TicketOptions(c *gin.Context, slug, token string) ([]*TicketOption, error) {
+	info, _, err := s.Session(c, slug, token)
+	if err != nil {
+		return nil, err
+	}
+	var options []*TicketOption
+	err = s.db.WithContext(requestContext(c)).Table("tickets").
+		Select("tickets.id, tickets.name").
+		Joins("JOIN user_tickets ut ON ut.ticket_id = tickets.id AND ut.deleted_at IS NULL").
+		Joins("JOIN orders ON orders.id = ut.order_id AND orders.status = 'paid'").
+		Where("tickets.event_id = ? AND tickets.deleted_at IS NULL", info.EventID).
+		Group("tickets.id, tickets.name").
+		Order("tickets.name ASC").
+		Scan(&options).Error
+	if err != nil {
+		return nil, err
+	}
+	return options, nil
 }
 
 func (s *service) CheckIn(c *gin.Context, slug, token, publicID string) (*presence.ResScanTicket, error) {

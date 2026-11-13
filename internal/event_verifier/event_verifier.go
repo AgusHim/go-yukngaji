@@ -43,6 +43,11 @@ type TicketRow struct {
 	LastCheckInAt *time.Time `json:"last_check_in_at"`
 }
 
+type TicketOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type LoginResult struct {
 	Token     string    `json:"token"`
 	ExpiresAt time.Time `json:"expires_at"`
@@ -70,7 +75,8 @@ type Service interface {
 	Disable(c *gin.Context, eventID string) error
 	Login(c *gin.Context, slug, password string) (*LoginResult, error)
 	Session(c *gin.Context, slug, token string) (*SessionInfo, *Session, error)
-	Tickets(c *gin.Context, slug, token, search string) ([]*TicketRow, error)
+	Tickets(c *gin.Context, slug, token, search, ticketID string) ([]*TicketRow, error)
+	TicketOptions(c *gin.Context, slug, token string) ([]*TicketOption, error)
 	CheckIn(c *gin.Context, slug, token, publicID string) (*presence.ResScanTicket, error)
 }
 
@@ -81,5 +87,6 @@ type Handler interface {
 	Login(c *gin.Context)
 	Session(c *gin.Context)
 	Tickets(c *gin.Context)
+	TicketOptions(c *gin.Context)
 	CheckIn(c *gin.Context)
 }

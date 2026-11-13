@@ -93,7 +93,16 @@ func (h *handler) Session(c *gin.Context) {
 }
 
 func (h *handler) Tickets(c *gin.Context) {
-	value, err := h.service.Tickets(c, c.Param("slug"), TokenFromRequest(c), c.Query("search"))
+	value, err := h.service.Tickets(c, c.Param("slug"), TokenFromRequest(c), c.Query("search"), c.Query("ticket_id"))
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, value)
+}
+
+func (h *handler) TicketOptions(c *gin.Context) {
+	value, err := h.service.TicketOptions(c, c.Param("slug"), TokenFromRequest(c))
 	if err != nil {
 		writeError(c, err)
 		return
